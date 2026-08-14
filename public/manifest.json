@@ -1,0 +1,19 @@
+{
+  "name": "아정당 재무 대시보드",
+  "short_name": "아정당 재무",
+  "description": "이사·청소·부동산 사업부 재무 현황 대시보드",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f9f9f7",
+  "theme_color": "#2a78d6",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

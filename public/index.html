@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>아정당 재무 대시보드</title>
+  <meta name="theme-color" content="#2a78d6" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">AJUNGDANG · 재무 대시보드</p>
+        <h1>이사 · 청소 · 부동산 재무 현황</h1>
+      </div>
+      <span id="source-badge" class="badge">불러오는 중…</span>
+    </header>
+
+    <section class="filters" aria-label="필터">
+      <div class="filter-group" id="period-filter" role="group" aria-label="기간">
+        <button data-period="3">최근 3개월</button>
+        <button data-period="6">최근 6개월</button>
+        <button data-period="12" class="active">최근 12개월</button>
+        <button data-period="0">전체</button>
+      </div>
+      <div class="filter-group" id="unit-filter" role="group" aria-label="사업부">
+        <button data-unit="" class="active">전체 사업부</button>
+        <button data-unit="이사">이사</button>
+        <button data-unit="청소">청소</button>
+        <button data-unit="부동산">부동산</button>
+      </div>
+    </section>
+
+    <section class="card entry-card">
+      <h2 class="card-title">거래 데이터 입력</h2>
+      <form id="entry-form" class="entry-form">
+        <div class="field">
+          <label for="in-date">거래일</label>
+          <input id="in-date" name="deal_date" type="date" required />
+        </div>
+        <div class="field">
+          <label for="in-unit">사업부</label>
+          <select id="in-unit" name="business_unit" required>
+            <option value="이사">이사</option>
+            <option value="청소">청소</option>
+            <option value="부동산">부동산</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="in-revenue">매출 (원)</label>
+          <input id="in-revenue" name="revenue" type="number" min="0" step="1000" required placeholder="예: 800000" />
+        </div>
+        <div class="field">
+          <label for="in-cost">비용 (원)</label>
+          <input id="in-cost" name="cost" type="number" min="0" step="1000" required placeholder="예: 500000" />
+        </div>
+        <div class="field">
+          <label for="in-status">수금상태</label>
+          <select id="in-status" name="status">
+            <option value="완료">완료</option>
+            <option value="미수">미수</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="in-region">지역</label>
+          <input id="in-region" name="region" type="text" maxlength="20" placeholder="예: 서울" />
+        </div>
+        <button type="submit" class="submit-btn">추가</button>
+        <p id="entry-message" class="entry-message" role="status"></p>
+      </form>
+    </section>
+
+    <section class="kpi-grid" id="kpi-grid" aria-label="핵심 지표"></section>
+
+    <section class="chart-grid">
+      <figure class="card">
+        <figcaption class="card-title">월별 매출 · 비용 · 순이익</figcaption>
+        <div class="chart-box"><canvas id="chart-monthly"></canvas></div>
+      </figure>
+      <figure class="card">
+        <figcaption class="card-title">사업부별 매출 비중</figcaption>
+        <div class="chart-box"><canvas id="chart-share"></canvas></div>
+      </figure>
+      <figure class="card">
+        <figcaption class="card-title">월별 사업부별 매출 추이</figcaption>
+        <div class="chart-box"><canvas id="chart-stacked"></canvas></div>
+      </figure>
+      <figure class="card">
+        <figcaption class="card-title">사업부별 수금 현황 (완료 vs 미수)</figcaption>
+        <div class="chart-box"><canvas id="chart-collection"></canvas></div>
+      </figure>
+    </section>
+
+    <section class="card table-card">
+      <h2 class="card-title">사업부별 요약</h2>
+      <div class="table-scroll">
+        <table id="summary-table">
+          <thead>
+            <tr>
+              <th scope="col">사업부</th>
+              <th scope="col">매출</th>
+              <th scope="col">비용</th>
+              <th scope="col">순이익</th>
+              <th scope="col">이익률</th>
+              <th scope="col">건수</th>
+              <th scope="col">객단가</th>
+              <th scope="col">미수금</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

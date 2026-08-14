@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.*
+.deploy-secrets.json
+dist-artifact.html
+.DS_Store
+npm-debug.log*
