@@ -48,12 +48,20 @@ app.get("/api/deals", async (req, res) => {
   if (!supabase) {
     return res.json({ source: "dummy", deals: fallback });
   }
-  const { data, error } = await supabase
-    .from("deals")
-    .select("*")
-    .order("deal_date", { ascending: true });
-  if (error) return res.status(500).json({ error: error.message });
-  res.json({ source: "supabase", deals: data });
+  // Supabase는 한 요청당 최대 1000행만 반환하므로 페이지로 나눠 전부 가져온다.
+  const PAGE = 1000;
+  let all = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("deals")
+      .select("*")
+      .order("deal_date", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) return res.status(500).json({ error: error.message });
+    all = all.concat(data);
+    if (data.length < PAGE) break;
+  }
+  res.json({ source: "supabase", deals: all });
 });
 
 app.post("/api/deals", async (req, res) => {
