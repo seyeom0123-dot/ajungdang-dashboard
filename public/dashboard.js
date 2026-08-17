@@ -102,14 +102,16 @@ function aggregate(deals) {
 
 // ── 렌더 ─────────────────────────────────────────────────────
 function render() {
-  const deals = filtered();
-  const agg = aggregate(deals);
+  const agg = aggregate(filtered());
   renderKPIs(agg.totals);
-  renderMonthlyChart(agg.months);
   renderShareChart(agg.unitRevenue);
+  renderShareTable(agg.unitRevenue);
   renderStackedChart(agg.months);
+  renderStackedTable(agg.months);
+  renderMonthlyChart(agg.months);
+  renderMonthlyTable(agg.months);
   renderCollectionChart(agg.unitAgg);
-  renderTable(agg.unitAgg);
+  renderCollectionTable(agg.unitAgg);
 }
 
 function renderKPIs(t) {
@@ -253,32 +255,67 @@ function renderCollectionChart(unitAgg) {
   });
 }
 
-function renderTable(unitAgg) {
-  const tbody = document.querySelector("#summary-table tbody");
-  const units = UNIT_ORDER.filter((u) => unitAgg[u]);
-  const sum = { revenue: 0, cost: 0, count: 0, receivable: 0 };
-  const rows = units.map((u) => {
-    const a = unitAgg[u];
-    sum.revenue += a.revenue; sum.cost += a.cost; sum.count += a.count; sum.receivable += a.receivable;
-    return rowHtml(`<span class="unit-dot" style="background:${COLOR[u]}"></span>${u}`, a);
-  });
-  rows.push(rowHtml("합계", sum));
-  tbody.innerHTML = rows.join("");
+// ── 차트별 설명 표 ────────────────────────────────────────────
+const mLabel = (key) => `${Number(key.slice(5, 7))}월`;
+const dot = (u) => `<span class="unit-dot" style="background:${COLOR[u]}"></span>${u}`;
+function tableHTML(headers, rows) {
+  const head = headers.map((h, i) => `<th${i === 0 ? ' class="lead"' : ""}>${h}</th>`).join("");
+  const body = rows
+    .map((r) => `<tr>${r.map((c, i) => `<td${i === 0 ? ' class="lead"' : ""}>${c}</td>`).join("")}</tr>`)
+    .join("");
+  return `<table class="data-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
-function rowHtml(name, a) {
-  const profit = a.revenue - a.cost;
-  const margin = a.revenue ? (profit / a.revenue) * 100 : 0;
-  const avg = a.count ? a.revenue / a.count : 0;
-  return `<tr>
-    <td>${name}</td>
-    <td>${wonShort(a.revenue)}</td>
-    <td>${wonShort(a.cost)}</td>
-    <td>${wonShort(profit)}</td>
-    <td>${pct(margin)}</td>
-    <td>${a.count.toLocaleString("ko-KR")}</td>
-    <td>${wonShort(avg)}</td>
-    <td>${wonShort(a.receivable)}</td>
-  </tr>`;
+
+// 사업부별 매출 비중
+function renderShareTable(unitRevenue) {
+  const units = UNIT_ORDER.filter((u) => unitRevenue[u]);
+  const total = units.reduce((s, u) => s + unitRevenue[u], 0) || 1;
+  const rows = units.map((u) => [dot(u), wonShort(unitRevenue[u]), pct((unitRevenue[u] / total) * 100)]);
+  rows.push(["합계", wonShort(total), "100.0%"]);
+  document.getElementById("tbl-share").innerHTML = tableHTML(["사업부", "매출", "비중"], rows);
+}
+
+// 월별 사업부별 매출
+function renderStackedTable(months) {
+  const keys = sortedMonths(months);
+  const sums = { 이사: 0, 청소: 0, 부동산: 0 };
+  const rows = keys.map((k) => {
+    const bu = months[k].byUnit;
+    let tot = 0;
+    const cells = UNIT_ORDER.map((u) => { sums[u] += bu[u] || 0; tot += bu[u] || 0; return wonShort(bu[u] || 0); });
+    return [mLabel(k), ...cells, wonShort(tot)];
+  });
+  const grand = UNIT_ORDER.reduce((s, u) => s + sums[u], 0);
+  rows.push(["합계", ...UNIT_ORDER.map((u) => wonShort(sums[u])), wonShort(grand)]);
+  document.getElementById("tbl-stacked").innerHTML = tableHTML(["월", "이사", "청소", "부동산", "합계"], rows);
+}
+
+// 월별 매출·비용·순이익
+function renderMonthlyTable(months) {
+  const keys = sortedMonths(months);
+  let sr = 0, sc = 0;
+  const rows = keys.map((k) => {
+    const rev = months[k].revenue, cost = months[k].cost, pf = rev - cost;
+    sr += rev; sc += cost;
+    return [mLabel(k), wonShort(rev), wonShort(cost), wonShort(pf), pct(rev ? (pf / rev) * 100 : 0)];
+  });
+  const gpf = sr - sc;
+  rows.push(["합계", wonShort(sr), wonShort(sc), wonShort(gpf), pct(sr ? (gpf / sr) * 100 : 0)]);
+  document.getElementById("tbl-monthly").innerHTML = tableHTML(["월", "매출", "비용", "순이익", "이익률"], rows);
+}
+
+// 사업부별 수금 현황
+function renderCollectionTable(unitAgg) {
+  const units = UNIT_ORDER.filter((u) => unitAgg[u]);
+  let sd = 0, srec = 0;
+  const rows = units.map((u) => {
+    const a = unitAgg[u], done = a.revenue - a.receivable;
+    sd += done; srec += a.receivable;
+    return [dot(u), wonShort(done), wonShort(a.receivable), pct(a.revenue ? (a.receivable / a.revenue) * 100 : 0)];
+  });
+  const tot = sd + srec;
+  rows.push(["합계", wonShort(sd), wonShort(srec), pct(tot ? (srec / tot) * 100 : 0)]);
+  document.getElementById("tbl-collection").innerHTML = tableHTML(["사업부", "수금완료", "미수", "미수율"], rows);
 }
 
 // Chart 생성/재생성 (기존 인스턴스 파기)

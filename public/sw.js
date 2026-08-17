@@ -2,7 +2,7 @@
 // 온라인이면 항상 서버의 최신 파일을 보여주고, 오프라인일 때만 캐시로 대체한다.
 // (이전 "캐시 우선" 방식은 배포해도 옛날 화면이 남는 문제가 있어 교체함)
 const CACHE = "ajd-v2";
-const SHELL = ["./", "./index.html", "./style.css", "./dashboard.js", "./logo.png", "./icon.svg", "./manifest.json"];
+const SHELL = ["./", "./index.html", "./style.css", "./dashboard.js", "./logo-icon.png", "./icon.svg", "./manifest.json"];
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();
