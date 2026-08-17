@@ -34,7 +34,7 @@
         <span id="source-badge" class="badge">불러오는 중…</span>
       </header>
 
-      <section class="filters" aria-label="필터">
+      <section class="filters" id="global-filters" aria-label="필터">
         <div class="filter-group month-range" id="month-filter" role="group" aria-label="월 선택">
           <span class="range-label">2026년</span>
           <input id="from-month" type="number" min="1" max="12" value="1" inputmode="numeric" aria-label="시작 월" />
@@ -91,16 +91,24 @@
       </div>
 
       <div id="dept-view" hidden>
-        <section class="card">
+        <nav class="tabs month-tabs" id="dept-month-tabs" aria-label="월 선택"></nav>
+
+        <section class="card" id="dept-monthly-section">
           <div class="dept-head">
-            <h2 class="card-title" id="dept-monthly-title">월별 매출 · 지출 상세</h2>
+            <h2 class="card-title">월별 매출 · 지출 상세</h2>
             <div class="filter-group" id="dept-mode" role="group" aria-label="보기 방식">
               <button data-mode="월별" class="active">월별</button>
               <button data-mode="누적">누적</button>
             </div>
           </div>
-          <p class="chart-desc">월별 매출·지출(영업비용)·영업이익입니다. 오른쪽 <b>‘누적’</b>을 누르면 위에서부터 쌓이는 누적 합계로 볼 수 있어요. 맨 아래는 연간(2026) 합계.</p>
+          <p class="chart-desc">월별 매출·지출(영업비용)·영업이익입니다. 오른쪽 <b>‘누적’</b>을 누르면 누적 합계로 볼 수 있어요. 맨 아래는 연간(2026) 합계.</p>
           <div class="table-scroll" id="dept-monthly-table"></div>
+        </section>
+
+        <section class="card" id="dept-summary-section" hidden>
+          <h2 class="card-title" id="dept-summary-title">요약</h2>
+          <div class="summary-row" id="dept-summary"></div>
+          <p class="mini-note">※ 세금·영업외 항목 데이터가 없어 당기순이익은 영업이익과 같은 값으로 표시됩니다.</p>
         </section>
 
         <section class="card">
@@ -108,7 +116,7 @@
             <h2 class="card-title" id="dept-title">거래 내역 (엑셀 양식)</h2>
             <span class="badge" id="dept-count"></span>
           </div>
-          <p class="chart-desc">엑셀 양식(거래일 · 사업부 · 매출 · 비용 · 수금상태 · 지역) 그대로입니다. 위 월 범위에 맞춰 바뀝니다.</p>
+          <p class="chart-desc" id="dept-detail-desc">엑셀 양식(거래일 · 사업부 · 매출 · 비용 · 수금상태 · 지역) 그대로입니다.</p>
           <div class="table-scroll excel-scroll" id="dept-table"></div>
         </section>
       </div>

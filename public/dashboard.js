@@ -33,7 +33,7 @@ const pct = (x) => (isFinite(x) ? x.toFixed(1) : "0.0") + "%";
 
 // ── 상태 ─────────────────────────────────────────────────────
 let ALL = [];
-const state = { fromMonth: 1, toMonth: 12, page: "전체", deptMode: "월별" };
+const state = { fromMonth: 1, toMonth: 12, page: "전체", deptMode: "월별", deptMonth: "전체" };
 const charts = {};
 
 // ── 데이터 로드 ───────────────────────────────────────────────
@@ -59,11 +59,11 @@ function inMonthRange(d) {
 function filtered() {
   return ALL.filter(inMonthRange);
 }
-// 특정 사업부의 (월 범위 내) 거래
-function deptDeals(unit) {
-  return ALL.filter((d) => d.business_unit === unit && inMonthRange(d)).sort((a, b) =>
-    a.deal_date < b.deal_date ? -1 : 1
-  );
+// 특정 사업부·특정 월("전체" 또는 1~12)의 거래
+function deptDealsForMonth(unit, month) {
+  return ALL.filter(
+    (d) => d.business_unit === unit && (month === "전체" || Number(d.deal_date.slice(5, 7)) === month)
+  ).sort((a, b) => (a.deal_date < b.deal_date ? -1 : 1));
 }
 
 // ── 집계 ─────────────────────────────────────────────────────
@@ -111,6 +111,7 @@ function render() {
   const isAll = state.page === "전체";
   document.getElementById("dashboard-view").hidden = !isAll;
   document.getElementById("dept-view").hidden = isAll;
+  document.getElementById("global-filters").hidden = !isAll; // 사업부 페이지는 자체 월 버튼 사용
   document.getElementById("page-title").textContent = isAll
     ? "이사 · 청소 · 부동산 재무 현황"
     : `${state.page} 재무 상세`;
@@ -298,11 +299,29 @@ function renderMonthlyTable(months) {
   document.getElementById("tbl-monthly").innerHTML = tableHTML(["월", "매출", "영업비용", "영업이익", "이익률"], rows);
 }
 
-// ── 사업부 상세 뷰 (월별/연간 매출·지출 + 누적 + 엑셀 양식 거래내역) ──
+// ── 사업부 상세 뷰 (월 버튼: 전체/1~12) ──
 function renderDeptView(unit) {
-  const deals = deptDeals(unit);
+  const month = state.deptMonth; // "전체" 또는 1~12
+  const isAllMonths = month === "전체";
+  document.getElementById("dept-monthly-section").hidden = !isAllMonths;
+  document.getElementById("dept-summary-section").hidden = isAllMonths;
 
-  // 1) 월별 매출·지출 상세 (누적 포함)
+  const deals = deptDealsForMonth(unit, month);
+
+  if (isAllMonths) {
+    renderDeptMonthlyTable(deals);
+    document.getElementById("dept-detail-desc").textContent =
+      "엑셀 양식(거래일 · 사업부 · 매출 · 비용 · 수금상태 · 지역) 그대로, 연간 전체 거래입니다.";
+  } else {
+    renderDeptSummary(month, deals);
+    document.getElementById("dept-detail-desc").textContent =
+      `${month}월 거래를 엑셀 양식(거래일 · 사업부 · 매출 · 비용 · 수금상태 · 지역)으로 봅니다.`;
+  }
+  renderDeptExcel(deals);
+}
+
+// 전체(연간) 월별 표: 월별 / 누적 토글
+function renderDeptMonthlyTable(deals) {
   const byMonth = {};
   for (const d of deals) {
     const k = monthKey(d.deal_date);
@@ -313,17 +332,36 @@ function renderDeptView(unit) {
   const keys = Object.keys(byMonth).sort();
   const isCum = state.deptMode === "누적";
   let cr = 0, cc = 0;
-  const mrows = keys.map((k) => {
+  const rows = keys.map((k) => {
     cr += byMonth[k].rev; cc += byMonth[k].cost;
-    const R = isCum ? cr : byMonth[k].rev;
-    const C = isCum ? cc : byMonth[k].cost;
+    const R = isCum ? cr : byMonth[k].rev, C = isCum ? cc : byMonth[k].cost;
     return [mLabel(k), wonShort(R), wonShort(C), wonShort(R - C)];
   });
-  mrows.push(["연간 합계", wonShort(cr), wonShort(cc), wonShort(cr - cc)]);
+  rows.push(["연간 합계", wonShort(cr), wonShort(cc), wonShort(cr - cc)]);
   const heads = isCum ? ["월", "누적 매출", "누적 지출", "누적 이익"] : ["월", "매출", "지출", "영업이익"];
-  document.getElementById("dept-monthly-table").innerHTML = tableHTML(heads, mrows);
+  document.getElementById("dept-monthly-table").innerHTML = tableHTML(heads, rows);
+}
 
-  // 2) 엑셀 양식 거래 내역
+// 단일 월 요약 카드: 매출·지출·영업이익·당기순이익·이익률
+function renderDeptSummary(month, deals) {
+  let rev = 0, cost = 0;
+  for (const d of deals) { rev += Number(d.revenue); cost += Number(d.cost); }
+  const op = rev - cost, margin = rev ? (op / rev) * 100 : 0;
+  document.getElementById("dept-summary-title").textContent = `${month}월 요약`;
+  const items = [
+    ["매출", wonShort(rev)],
+    ["지출", wonShort(cost)],
+    ["영업이익", wonShort(op)],
+    ["당기순이익", wonShort(op)],
+    ["이익률", pct(margin)],
+  ];
+  document.getElementById("dept-summary").innerHTML = items
+    .map(([l, v]) => `<div class="s-item"><span class="s-label">${l}</span><span class="s-val">${v}</span></div>`)
+    .join("");
+}
+
+// 엑셀 양식 거래 내역(공통)
+function renderDeptExcel(deals) {
   document.getElementById("dept-count").textContent = `${deals.length.toLocaleString("ko-KR")}건`;
   let sRev = 0, sCost = 0;
   const body = deals
@@ -444,11 +482,33 @@ function wireUpload() {
   });
 }
 
+// 사업부 페이지 월 버튼(전체, 1~12) 생성 + 클릭 배선
+function buildDeptMonthTabs() {
+  const nav = document.getElementById("dept-month-tabs");
+  const list = ["전체", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  nav.innerHTML = list
+    .map((m) => {
+      const label = m === "전체" ? "전체" : `${m}월`;
+      const active = m === state.deptMonth ? ' class="active"' : "";
+      return `<button data-month="${m}"${active}>${label}</button>`;
+    })
+    .join("");
+  nav.querySelectorAll("button").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const v = btn.dataset.month;
+      state.deptMonth = v === "전체" ? "전체" : Number(v);
+      setActive("#dept-month-tabs", btn);
+      render();
+    })
+  );
+}
+
 // ── 시작 ─────────────────────────────────────────────────────
 if (window.Chart) {
   Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
   Chart.defaults.color = COLOR.text2;
 }
+buildDeptMonthTabs();
 wireFilters();
 wireUpload();
 loadData();
