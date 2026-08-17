@@ -35,13 +35,23 @@
       </header>
 
       <section class="filters" id="global-filters" aria-label="필터">
-        <div class="filter-group month-range" id="month-filter" role="group" aria-label="월 선택">
-          <span class="range-label">2026년</span>
-          <input id="from-month" type="number" min="1" max="12" value="1" inputmode="numeric" aria-label="시작 월" />
-          <span class="range-sep">월 ~</span>
-          <input id="to-month" type="number" min="1" max="12" value="12" inputmode="numeric" aria-label="종료 월" />
-          <span class="range-sep">월</span>
-        </div>
+        <label class="field-inline">2026년
+          <select id="dash-month-select">
+            <option value="전체">전체 (월별 추이)</option>
+            <option value="1">1월</option>
+            <option value="2">2월</option>
+            <option value="3">3월</option>
+            <option value="4">4월</option>
+            <option value="5">5월</option>
+            <option value="6">6월</option>
+            <option value="7">7월</option>
+            <option value="8">8월</option>
+            <option value="9">9월</option>
+            <option value="10">10월</option>
+            <option value="11">11월</option>
+            <option value="12">12월</option>
+          </select>
+        </label>
       </section>
 
       <section class="card upload-card">
@@ -91,7 +101,26 @@
       </div>
 
       <div id="dept-view" hidden>
-        <nav class="tabs month-tabs" id="dept-month-tabs" aria-label="월 선택"></nav>
+        <div class="dept-toolbar">
+          <label class="field-inline">월 선택
+            <select id="dept-month-select">
+              <option value="전체">전체</option>
+              <option value="1">1월</option>
+              <option value="2">2월</option>
+              <option value="3">3월</option>
+              <option value="4">4월</option>
+              <option value="5">5월</option>
+              <option value="6">6월</option>
+              <option value="7">7월</option>
+              <option value="8">8월</option>
+              <option value="9">9월</option>
+              <option value="10">10월</option>
+              <option value="11">11월</option>
+              <option value="12">12월</option>
+            </select>
+          </label>
+          <button class="filter-chip" id="dept-filter-chip" type="button" hidden></button>
+        </div>
 
         <section class="card" id="dept-monthly-section">
           <div class="dept-head">
@@ -105,18 +134,12 @@
           <div class="table-scroll" id="dept-monthly-table"></div>
         </section>
 
-        <section class="card" id="dept-summary-section" hidden>
-          <h2 class="card-title" id="dept-summary-title">요약</h2>
-          <div class="summary-row" id="dept-summary"></div>
-          <p class="mini-note">※ 세금·영업외 항목 데이터가 없어 당기순이익은 영업이익과 같은 값으로 표시됩니다.</p>
-        </section>
-
         <section class="card">
           <div class="dept-head">
             <h2 class="card-title" id="dept-title">거래 내역 (엑셀 양식)</h2>
             <span class="badge" id="dept-count"></span>
           </div>
-          <p class="chart-desc" id="dept-detail-desc">엑셀 양식(거래일 · 사업부 · 매출 · 비용 · 수금상태 · 지역) 그대로입니다.</p>
+          <p class="chart-desc" id="dept-detail-desc">거래일 · 수금상태 · 지역을 클릭하면 그 값에 해당하는 거래만 볼 수 있어요. (합계는 스크롤해도 하단에 고정)</p>
           <div class="table-scroll excel-scroll" id="dept-table"></div>
         </section>
       </div>

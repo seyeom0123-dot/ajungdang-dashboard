@@ -157,6 +157,47 @@ body {
 .s-val { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
 .mini-note { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
 
+/* 사업부 툴바 (월 드롭박스 + 필터 칩) */
+.dept-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.field-inline { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+.field-inline select {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.filter-chip {
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.filter-chip:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+
+/* 클릭 가능한 셀 */
+.data-table td.clickable { cursor: pointer; }
+.data-table td.clickable:hover { color: var(--accent); text-decoration: underline; }
+
+/* 거래내역 합계 하단 고정 */
+.excel-scroll .data-table tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  border-top: 2px solid var(--border);
+  border-bottom: 0;
+  font-weight: 700;
+  z-index: 1;
+}
+
 @media (max-width: 820px) {
   .layout { flex-direction: column; }
   .sidebar {

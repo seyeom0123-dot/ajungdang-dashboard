@@ -33,7 +33,7 @@ const pct = (x) => (isFinite(x) ? x.toFixed(1) : "0.0") + "%";
 
 // ── 상태 ─────────────────────────────────────────────────────
 let ALL = [];
-const state = { fromMonth: 1, toMonth: 12, page: "전체", deptMode: "월별", deptMonth: "전체" };
+const state = { month: "전체", page: "전체", deptMode: "월별", deptFilter: { col: null, val: null } };
 const charts = {};
 
 // ── 데이터 로드 ───────────────────────────────────────────────
@@ -49,21 +49,29 @@ async function loadData() {
 }
 
 // ── 필터 ─────────────────────────────────────────────────────
-// 거래일(YYYY-MM-DD)의 월(1~12)이 [fromMonth, toMonth] 범위에 드는지.
-function inMonthRange(d) {
-  const lo = Math.min(state.fromMonth, state.toMonth);
-  const hi = Math.max(state.fromMonth, state.toMonth);
-  const m = Number(d.deal_date.slice(5, 7));
-  return m >= lo && m <= hi;
+// 선택 월(state.month: "전체" 또는 1~12)에 해당하는지.
+function inSelectedMonth(d) {
+  return state.month === "전체" || Number(d.deal_date.slice(5, 7)) === state.month;
 }
 function filtered() {
-  return ALL.filter(inMonthRange);
+  return ALL.filter(inSelectedMonth);
 }
-// 특정 사업부·특정 월("전체" 또는 1~12)의 거래
-function deptDealsForMonth(unit, month) {
-  return ALL.filter(
-    (d) => d.business_unit === unit && (month === "전체" || Number(d.deal_date.slice(5, 7)) === month)
-  ).sort((a, b) => (a.deal_date < b.deal_date ? -1 : 1));
+// 특정 사업부의 (선택 월) 거래
+function deptDealsForUnit(unit) {
+  return ALL.filter((d) => d.business_unit === unit && inSelectedMonth(d)).sort((a, b) =>
+    a.deal_date < b.deal_date ? -1 : 1
+  );
+}
+// 거래일/수금상태/지역 클릭 필터 적용
+function applyColFilter(deals) {
+  const f = state.deptFilter;
+  if (!f.col) return deals;
+  return deals.filter((d) => {
+    if (f.col === "deal_date") return d.deal_date === f.val;
+    if (f.col === "status") return d.status === f.val;
+    if (f.col === "region") return (d.region || "") === f.val;
+    return true;
+  });
 }
 
 // ── 집계 ─────────────────────────────────────────────────────
@@ -111,10 +119,11 @@ function render() {
   const isAll = state.page === "전체";
   document.getElementById("dashboard-view").hidden = !isAll;
   document.getElementById("dept-view").hidden = isAll;
-  document.getElementById("global-filters").hidden = !isAll; // 사업부 페이지는 자체 월 버튼 사용
+  document.getElementById("global-filters").hidden = !isAll; // 사업부 페이지는 자체 드롭박스 사용
   document.getElementById("page-title").textContent = isAll
     ? "이사 · 청소 · 부동산 재무 현황"
     : `${state.page} 재무 상세`;
+  syncMonthSelects();
 
   if (isAll) {
     const agg = aggregate(filtered());
@@ -299,25 +308,28 @@ function renderMonthlyTable(months) {
   document.getElementById("tbl-monthly").innerHTML = tableHTML(["월", "매출", "영업비용", "영업이익", "이익률"], rows);
 }
 
-// ── 사업부 상세 뷰 (월 버튼: 전체/1~12) ──
+// ── 사업부 상세 뷰 (월 드롭박스: 전체/1~12) ──
 function renderDeptView(unit) {
-  const month = state.deptMonth; // "전체" 또는 1~12
-  const isAllMonths = month === "전체";
-  document.getElementById("dept-monthly-section").hidden = !isAllMonths;
-  document.getElementById("dept-summary-section").hidden = isAllMonths;
+  const isAllMonths = state.month === "전체";
+  document.getElementById("dept-monthly-section").hidden = !isAllMonths; // 월별 표는 전체일 때만
 
-  const deals = deptDealsForMonth(unit, month);
+  const deals = deptDealsForUnit(unit);
+  if (isAllMonths) renderDeptMonthlyTable(deals);
 
-  if (isAllMonths) {
-    renderDeptMonthlyTable(deals);
-    document.getElementById("dept-detail-desc").textContent =
-      "엑셀 양식(거래일 · 사업부 · 매출 · 비용 · 수금상태 · 지역) 그대로, 연간 전체 거래입니다.";
-  } else {
-    renderDeptSummary(month, deals);
-    document.getElementById("dept-detail-desc").textContent =
-      `${month}월 거래를 엑셀 양식(거래일 · 사업부 · 매출 · 비용 · 수금상태 · 지역)으로 봅니다.`;
-  }
-  renderDeptExcel(deals);
+  // 클릭 필터 적용 후 거래내역 렌더
+  const shown = applyColFilter(deals);
+  renderFilterChip();
+  renderDeptExcel(shown);
+}
+
+// 활성 클릭 필터 표시(칩)
+function renderFilterChip() {
+  const chip = document.getElementById("dept-filter-chip");
+  const f = state.deptFilter;
+  if (!f.col) { chip.hidden = true; return; }
+  const label = { deal_date: "거래일", status: "수금상태", region: "지역" }[f.col];
+  chip.hidden = false;
+  chip.textContent = `${label}: ${f.val || "(빈값)"}  ✕`;
 }
 
 // 전체(연간) 월별 표: 월별 / 누적 토글
@@ -342,27 +354,10 @@ function renderDeptMonthlyTable(deals) {
   document.getElementById("dept-monthly-table").innerHTML = tableHTML(heads, rows);
 }
 
-// 단일 월 요약 카드: 매출·지출·영업이익·당기순이익·이익률
-function renderDeptSummary(month, deals) {
-  let rev = 0, cost = 0;
-  for (const d of deals) { rev += Number(d.revenue); cost += Number(d.cost); }
-  const op = rev - cost, margin = rev ? (op / rev) * 100 : 0;
-  document.getElementById("dept-summary-title").textContent = `${month}월 요약`;
-  const items = [
-    ["매출", wonShort(rev)],
-    ["지출", wonShort(cost)],
-    ["영업이익", wonShort(op)],
-    ["당기순이익", wonShort(op)],
-    ["이익률", pct(margin)],
-  ];
-  document.getElementById("dept-summary").innerHTML = items
-    .map(([l, v]) => `<div class="s-item"><span class="s-label">${l}</span><span class="s-val">${v}</span></div>`)
-    .join("");
-}
-
-// 엑셀 양식 거래 내역(공통)
+// 엑셀 양식 거래 내역: 거래일/수금상태/지역 셀 클릭 → 필터, 합계는 하단 고정(tfoot)
 function renderDeptExcel(deals) {
   document.getElementById("dept-count").textContent = `${deals.length.toLocaleString("ko-KR")}건`;
+  const esc = (s) => String(s).replace(/"/g, "&quot;");
   let sRev = 0, sCost = 0;
   const body = deals
     .map((d) => {
@@ -370,26 +365,30 @@ function renderDeptExcel(deals) {
       const st = d.status === "미수"
         ? '<span class="st-unpaid">미수</span>'
         : '<span class="st-paid">완료</span>';
+      const region = d.region || "";
       return `<tr>
-        <td class="lead">${d.deal_date}</td>
+        <td class="lead clickable" data-col="deal_date" data-val="${esc(d.deal_date)}">${d.deal_date}</td>
         <td class="lead">${d.business_unit}</td>
         <td>${Number(d.revenue).toLocaleString("ko-KR")}</td>
         <td>${Number(d.cost).toLocaleString("ko-KR")}</td>
-        <td class="lead">${st}</td>
-        <td class="lead">${d.region || ""}</td>
+        <td class="lead clickable" data-col="status" data-val="${esc(d.status)}">${st}</td>
+        <td class="lead clickable" data-col="region" data-val="${esc(region)}">${region}</td>
       </tr>`;
     })
     .join("");
-  const totalRow = `<tr>
-    <td class="lead">합계</td><td class="lead"></td>
-    <td>${sRev.toLocaleString("ko-KR")}</td><td>${sCost.toLocaleString("ko-KR")}</td>
-    <td class="lead"></td><td class="lead"></td></tr>`;
-  const empty = `<tr><td class="lead" colspan="6" style="text-align:center;color:var(--muted)">해당 기간에 거래가 없습니다.</td></tr>`;
+  const empty = `<tr><td class="lead" colspan="6" style="text-align:center;color:var(--muted)">해당 조건의 거래가 없습니다.</td></tr>`;
+  const tfoot = deals.length
+    ? `<tfoot><tr>
+         <td class="lead">합계 (${deals.length.toLocaleString("ko-KR")}건)</td><td class="lead"></td>
+         <td>${sRev.toLocaleString("ko-KR")}</td><td>${sCost.toLocaleString("ko-KR")}</td>
+         <td class="lead"></td><td class="lead"></td>
+       </tr></tfoot>`
+    : "";
   document.getElementById("dept-table").innerHTML =
     `<table class="data-table"><thead><tr>
        <th class="lead">거래일</th><th class="lead">사업부</th><th>매출</th><th>비용</th>
        <th class="lead">수금상태</th><th class="lead">지역</th>
-     </tr></thead><tbody>${deals.length ? body + totalRow : empty}</tbody></table>`;
+     </tr></thead><tbody>${deals.length ? body : empty}</tbody>${tfoot}</table>`;
 }
 
 // 사업부별 수금 현황
@@ -415,24 +414,27 @@ function draw(id, config) {
   charts[id] = new Chart(document.getElementById(id), config);
 }
 
-// ── 필터 ──────────────────────────────────────────────────────
-function wireFilters() {
-  const from = document.getElementById("from-month");
-  const to = document.getElementById("to-month");
-  const clamp = (v) => Math.min(12, Math.max(1, Math.round(Number(v) || 1)));
-  const onMonth = () => {
-    state.fromMonth = clamp(from.value);
-    state.toMonth = clamp(to.value);
-    render();
-  };
-  from.addEventListener("change", onMonth);
-  to.addEventListener("change", onMonth);
-  from.addEventListener("input", onMonth);
-  to.addEventListener("input", onMonth);
+// ── 컨트롤 배선 ────────────────────────────────────────────────
+function setMonth(v) {
+  state.month = v === "전체" ? "전체" : Number(v);
+  state.deptFilter = { col: null, val: null }; // 월 바꾸면 클릭 필터 해제
+  render();
+}
+function syncMonthSelects() {
+  const v = String(state.month);
+  const a = document.getElementById("dash-month-select");
+  const b = document.getElementById("dept-month-select");
+  if (a) a.value = v;
+  if (b) b.value = v;
+}
+function wireControls() {
+  document.getElementById("dash-month-select").addEventListener("change", (e) => setMonth(e.target.value));
+  document.getElementById("dept-month-select").addEventListener("change", (e) => setMonth(e.target.value));
 
   document.querySelectorAll("#page-menu button").forEach((btn) =>
     btn.addEventListener("click", () => {
       state.page = btn.dataset.page;
+      state.deptFilter = { col: null, val: null };
       setActive("#page-menu", btn);
       render();
     })
@@ -445,6 +447,19 @@ function wireFilters() {
       render();
     })
   );
+
+  // 거래내역 셀 클릭 → 해당 값으로 필터 (이벤트 위임)
+  document.getElementById("dept-table").addEventListener("click", (e) => {
+    const cell = e.target.closest("[data-col]");
+    if (!cell) return;
+    state.deptFilter = { col: cell.dataset.col, val: cell.dataset.val };
+    render();
+  });
+  // 필터 칩 클릭 → 해제
+  document.getElementById("dept-filter-chip").addEventListener("click", () => {
+    state.deptFilter = { col: null, val: null };
+    render();
+  });
 }
 function setActive(group, btn) {
   document.querySelectorAll(`${group} button`).forEach((b) => b.classList.remove("active"));
@@ -482,34 +497,12 @@ function wireUpload() {
   });
 }
 
-// 사업부 페이지 월 버튼(전체, 1~12) 생성 + 클릭 배선
-function buildDeptMonthTabs() {
-  const nav = document.getElementById("dept-month-tabs");
-  const list = ["전체", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  nav.innerHTML = list
-    .map((m) => {
-      const label = m === "전체" ? "전체" : `${m}월`;
-      const active = m === state.deptMonth ? ' class="active"' : "";
-      return `<button data-month="${m}"${active}>${label}</button>`;
-    })
-    .join("");
-  nav.querySelectorAll("button").forEach((btn) =>
-    btn.addEventListener("click", () => {
-      const v = btn.dataset.month;
-      state.deptMonth = v === "전체" ? "전체" : Number(v);
-      setActive("#dept-month-tabs", btn);
-      render();
-    })
-  );
-}
-
 // ── 시작 ─────────────────────────────────────────────────────
 if (window.Chart) {
   Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
   Chart.defaults.color = COLOR.text2;
 }
-buildDeptMonthTabs();
-wireFilters();
+wireControls();
 wireUpload();
 loadData();
 
