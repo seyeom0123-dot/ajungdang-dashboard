@@ -33,7 +33,7 @@ const pct = (x) => (isFinite(x) ? x.toFixed(1) : "0.0") + "%";
 
 // ── 상태 ─────────────────────────────────────────────────────
 let ALL = [];
-const state = { fromMonth: 1, toMonth: 12, unit: "" };
+const state = { fromMonth: 1, toMonth: 12, page: "전체" };
 const charts = {};
 
 // ── 데이터 로드 ───────────────────────────────────────────────
@@ -49,15 +49,21 @@ async function loadData() {
 }
 
 // ── 필터 ─────────────────────────────────────────────────────
-// 거래일(YYYY-MM-DD)의 월(1~12)이 [fromMonth, toMonth] 범위에 드는 거래만.
-function filtered() {
+// 거래일(YYYY-MM-DD)의 월(1~12)이 [fromMonth, toMonth] 범위에 드는지.
+function inMonthRange(d) {
   const lo = Math.min(state.fromMonth, state.toMonth);
   const hi = Math.max(state.fromMonth, state.toMonth);
-  return ALL.filter((d) => {
-    if (state.unit && d.business_unit !== state.unit) return false;
-    const m = Number(d.deal_date.slice(5, 7));
-    return m >= lo && m <= hi;
-  });
+  const m = Number(d.deal_date.slice(5, 7));
+  return m >= lo && m <= hi;
+}
+function filtered() {
+  return ALL.filter(inMonthRange);
+}
+// 특정 사업부의 (월 범위 내) 거래
+function deptDeals(unit) {
+  return ALL.filter((d) => d.business_unit === unit && inMonthRange(d)).sort((a, b) =>
+    a.deal_date < b.deal_date ? -1 : 1
+  );
 }
 
 // ── 집계 ─────────────────────────────────────────────────────
@@ -102,38 +108,26 @@ function aggregate(deals) {
 
 // ── 렌더 ─────────────────────────────────────────────────────
 function render() {
-  const agg = aggregate(filtered());
-  renderKPIs(agg.totals);
-  renderShareChart(agg.unitRevenue);
-  renderShareTable(agg.unitRevenue);
-  renderStackedChart(agg.months);
-  renderStackedTable(agg.months);
-  renderMonthlyChart(agg.months);
-  renderMonthlyTable(agg.months);
-  renderCollectionChart(agg.unitAgg);
-  renderCollectionTable(agg.unitAgg);
-}
+  const isAll = state.page === "전체";
+  document.getElementById("dashboard-view").hidden = !isAll;
+  document.getElementById("dept-view").hidden = isAll;
+  document.getElementById("page-title").textContent = isAll
+    ? "이사 · 청소 · 부동산 재무 현황"
+    : `${state.page} 재무 상세`;
 
-function renderKPIs(t) {
-  const profit = t.revenue - t.cost;
-  const margin = t.revenue ? (profit / t.revenue) * 100 : 0;
-  const avg = t.count ? t.revenue / t.count : 0;
-  const recRate = t.revenue ? (t.receivable / t.revenue) * 100 : 0;
-  const cards = [
-    { label: "총매출", value: wonShort(t.revenue), sub: `${t.count.toLocaleString("ko-KR")}건` },
-    { label: "총비용", value: wonShort(t.cost), sub: `매출 대비 ${pct(t.revenue ? (t.cost / t.revenue) * 100 : 0)}` },
-    { label: "순이익", value: wonShort(profit), sub: `이익률 ${pct(margin)}`, cls: profit >= 0 ? "good" : "bad" },
-    { label: "총 건수", value: t.count.toLocaleString("ko-KR") + "건", sub: "필터 기준" },
-    { label: "평균 객단가", value: wonShort(avg), sub: "건당 평균 매출" },
-    { label: "미수금", value: wonShort(t.receivable), sub: `${t.receivableCount}건 · 매출의 ${pct(recRate)}`, cls: "bad" },
-  ];
-  document.getElementById("kpi-grid").innerHTML = cards
-    .map(
-      (c) => `<div class="kpi"><p class="label">${c.label}</p>
-        <div class="value">${c.value}</div>
-        <div class="sub ${c.cls || ""}">${c.sub}</div></div>`
-    )
-    .join("");
+  if (isAll) {
+    const agg = aggregate(filtered());
+    renderShareChart(agg.unitRevenue);
+    renderShareTable(agg.unitRevenue);
+    renderStackedChart(agg.months);
+    renderStackedTable(agg.months);
+    renderMonthlyChart(agg.months);
+    renderMonthlyTable(agg.months);
+    renderCollectionChart(agg.unitAgg);
+    renderCollectionTable(agg.unitAgg);
+  } else {
+    renderDeptView(state.page);
+  }
 }
 
 function sortedMonths(months) {
@@ -169,9 +163,9 @@ function renderMonthlyChart(months) {
       labels,
       datasets: [
         { label: "매출", data: revenue, backgroundColor: COLOR.accent, borderRadius: 4, order: 2 },
-        { label: "비용", data: cost, backgroundColor: COLOR.cost, borderRadius: 4, order: 2 },
+        { label: "영업비용", data: cost, backgroundColor: COLOR.cost, borderRadius: 4, order: 2 },
         {
-          label: "순이익", data: profit, type: "line", borderColor: COLOR.profit,
+          label: "영업이익", data: profit, type: "line", borderColor: COLOR.profit,
           backgroundColor: COLOR.profit, borderWidth: 2, tension: 0.3, pointRadius: 3, order: 1,
         },
       ],
@@ -301,7 +295,62 @@ function renderMonthlyTable(months) {
   });
   const gpf = sr - sc;
   rows.push(["합계", wonShort(sr), wonShort(sc), wonShort(gpf), pct(sr ? (gpf / sr) * 100 : 0)]);
-  document.getElementById("tbl-monthly").innerHTML = tableHTML(["월", "매출", "비용", "순이익", "이익률"], rows);
+  document.getElementById("tbl-monthly").innerHTML = tableHTML(["월", "매출", "영업비용", "영업이익", "이익률"], rows);
+}
+
+// ── 사업부 상세 뷰 (월별/연간 매출·지출 + 누적 + 엑셀 양식 거래내역) ──
+function renderDeptView(unit) {
+  const deals = deptDeals(unit);
+
+  // 1) 월별 매출·지출 상세 (누적 포함)
+  const byMonth = {};
+  for (const d of deals) {
+    const k = monthKey(d.deal_date);
+    (byMonth[k] ||= { rev: 0, cost: 0 });
+    byMonth[k].rev += Number(d.revenue);
+    byMonth[k].cost += Number(d.cost);
+  }
+  const keys = Object.keys(byMonth).sort();
+  let cr = 0, cc = 0;
+  const mrows = keys.map((k) => {
+    const rev = byMonth[k].rev, cost = byMonth[k].cost, pf = rev - cost;
+    cr += rev; cc += cost;
+    return [mLabel(k), wonShort(rev), wonShort(cost), wonShort(pf), wonShort(cr), wonShort(cc), wonShort(cr - cc)];
+  });
+  mrows.push(["연간 합계", wonShort(cr), wonShort(cc), wonShort(cr - cc), "—", "—", "—"]);
+  document.getElementById("dept-monthly-table").innerHTML = tableHTML(
+    ["월", "매출", "지출", "영업이익", "누적 매출", "누적 지출", "누적 이익"], mrows
+  );
+
+  // 2) 엑셀 양식 거래 내역
+  document.getElementById("dept-count").textContent = `${deals.length.toLocaleString("ko-KR")}건`;
+  let sRev = 0, sCost = 0;
+  const body = deals
+    .map((d) => {
+      sRev += Number(d.revenue); sCost += Number(d.cost);
+      const st = d.status === "미수"
+        ? '<span class="st-unpaid">미수</span>'
+        : '<span class="st-paid">완료</span>';
+      return `<tr>
+        <td class="lead">${d.deal_date}</td>
+        <td class="lead">${d.business_unit}</td>
+        <td>${Number(d.revenue).toLocaleString("ko-KR")}</td>
+        <td>${Number(d.cost).toLocaleString("ko-KR")}</td>
+        <td class="lead">${st}</td>
+        <td class="lead">${d.region || ""}</td>
+      </tr>`;
+    })
+    .join("");
+  const totalRow = `<tr>
+    <td class="lead">합계</td><td class="lead"></td>
+    <td>${sRev.toLocaleString("ko-KR")}</td><td>${sCost.toLocaleString("ko-KR")}</td>
+    <td class="lead"></td><td class="lead"></td></tr>`;
+  const empty = `<tr><td class="lead" colspan="6" style="text-align:center;color:var(--muted)">해당 기간에 거래가 없습니다.</td></tr>`;
+  document.getElementById("dept-table").innerHTML =
+    `<table class="data-table"><thead><tr>
+       <th class="lead">거래일</th><th class="lead">사업부</th><th>매출</th><th>비용</th>
+       <th class="lead">수금상태</th><th class="lead">지역</th>
+     </tr></thead><tbody>${deals.length ? body + totalRow : empty}</tbody></table>`;
 }
 
 // 사업부별 수금 현황
@@ -342,10 +391,10 @@ function wireFilters() {
   from.addEventListener("input", onMonth);
   to.addEventListener("input", onMonth);
 
-  document.querySelectorAll("#unit-filter button").forEach((btn) =>
+  document.querySelectorAll("#page-menu button").forEach((btn) =>
     btn.addEventListener("click", () => {
-      state.unit = btn.dataset.unit;
-      setActive("#unit-filter", btn);
+      state.page = btn.dataset.page;
+      setActive("#page-menu", btn);
       render();
     })
   );

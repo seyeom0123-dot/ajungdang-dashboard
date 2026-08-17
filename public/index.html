@@ -14,77 +14,100 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="app">
-    <header class="app-header">
-      <div class="brand">
-        <img class="logo" src="logo-icon.png" alt="아정당" height="44" />
-        <h1>이사 · 청소 · 부동산 재무 현황</h1>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="side-brand">
+        <img class="logo" src="logo-icon.png" alt="아정당" height="38" />
+        <span class="side-brand-text">재무</span>
       </div>
-      <span id="source-badge" class="badge">불러오는 중…</span>
-    </header>
+      <nav class="menu" id="page-menu" aria-label="메뉴">
+        <button data-page="전체" class="active"><span class="mi">📊</span> 전체 대시보드</button>
+        <button data-page="이사"><span class="mi">🚚</span> 이사</button>
+        <button data-page="청소"><span class="mi">🧹</span> 청소</button>
+        <button data-page="부동산"><span class="mi">🏢</span> 부동산</button>
+      </nav>
+    </aside>
 
-    <section class="filters" aria-label="필터">
-      <div class="filter-group month-range" id="month-filter" role="group" aria-label="월 선택">
-        <span class="range-label">2026년</span>
-        <input id="from-month" type="number" min="1" max="12" value="1" inputmode="numeric" aria-label="시작 월" />
-        <span class="range-sep">월 ~</span>
-        <input id="to-month" type="number" min="1" max="12" value="12" inputmode="numeric" aria-label="종료 월" />
-        <span class="range-sep">월</span>
+    <main class="content">
+      <header class="app-header">
+        <h1 id="page-title">이사 · 청소 · 부동산 재무 현황</h1>
+        <span id="source-badge" class="badge">불러오는 중…</span>
+      </header>
+
+      <section class="filters" aria-label="필터">
+        <div class="filter-group month-range" id="month-filter" role="group" aria-label="월 선택">
+          <span class="range-label">2026년</span>
+          <input id="from-month" type="number" min="1" max="12" value="1" inputmode="numeric" aria-label="시작 월" />
+          <span class="range-sep">월 ~</span>
+          <input id="to-month" type="number" min="1" max="12" value="12" inputmode="numeric" aria-label="종료 월" />
+          <span class="range-sep">월</span>
+        </div>
+      </section>
+
+      <section class="card upload-card">
+        <h2 class="card-title">엑셀로 거래 데이터 올리기</h2>
+        <form id="upload-form" class="upload-form">
+          <input id="file-input" type="file" accept=".xlsx,.xls" required />
+          <button type="submit" class="submit-btn">업로드</button>
+          <a class="template-link" href="/api/template">📥 엑셀 양식 다운로드</a>
+        </form>
+        <p class="upload-hint">
+          엑셀 첫 행(머리글): <b>거래일 · 사업부 · 매출 · 비용 · 수금상태 · 지역</b>
+          &nbsp;— 사업부는 이사/청소/부동산, 수금상태는 완료/미수. 양식을 받아 채워서 올리세요.
+        </p>
+        <p id="upload-message" class="entry-message" role="status"></p>
+      </section>
+
+      <div id="dashboard-view">
+        <section class="chart-stack">
+          <figure class="card chart-section">
+            <figcaption class="card-title">사업부별 매출 비중</figcaption>
+            <p class="chart-desc">이사·청소·부동산이 전체 매출에서 차지하는 비율입니다.</p>
+            <div class="chart-box"><canvas id="chart-share"></canvas></div>
+            <div class="table-scroll" id="tbl-share"></div>
+          </figure>
+
+          <figure class="card chart-section">
+            <figcaption class="card-title">월별 사업부별 매출 추이</figcaption>
+            <p class="chart-desc">달마다 각 사업부가 올린 매출을 쌓아 보여줍니다.</p>
+            <div class="chart-box"><canvas id="chart-stacked"></canvas></div>
+            <div class="table-scroll" id="tbl-stacked"></div>
+          </figure>
+
+          <figure class="card chart-section">
+            <figcaption class="card-title">월별 매출 · 영업비용 · 영업이익</figcaption>
+            <p class="chart-desc">막대는 매출·영업비용, 선은 영업이익(매출−영업비용)입니다.</p>
+            <div class="chart-box"><canvas id="chart-monthly"></canvas></div>
+            <div class="table-scroll" id="tbl-monthly"></div>
+          </figure>
+
+          <figure class="card chart-section">
+            <figcaption class="card-title">사업부별 수금 현황</figcaption>
+            <p class="chart-desc">사업부별로 수금완료 금액과 아직 못 받은 미수금을 비교합니다.</p>
+            <div class="chart-box"><canvas id="chart-collection"></canvas></div>
+            <div class="table-scroll" id="tbl-collection"></div>
+          </figure>
+        </section>
       </div>
-      <div class="filter-group" id="unit-filter" role="group" aria-label="사업부">
-        <button data-unit="" class="active">전체 사업부</button>
-        <button data-unit="이사">이사</button>
-        <button data-unit="청소">청소</button>
-        <button data-unit="부동산">부동산</button>
+
+      <div id="dept-view" hidden>
+        <section class="card">
+          <h2 class="card-title" id="dept-monthly-title">월별 매출 · 지출 상세 (누적 포함)</h2>
+          <p class="chart-desc">월별 매출·지출(영업비용)·영업이익과, 위에서부터 쌓이는 누적 합계입니다. 맨 아래는 연간(2026) 합계.</p>
+          <div class="table-scroll" id="dept-monthly-table"></div>
+        </section>
+
+        <section class="card">
+          <div class="dept-head">
+            <h2 class="card-title" id="dept-title">거래 내역 (엑셀 양식)</h2>
+            <span class="badge" id="dept-count"></span>
+          </div>
+          <p class="chart-desc">엑셀 양식(거래일 · 사업부 · 매출 · 비용 · 수금상태 · 지역) 그대로입니다. 위 월 범위에 맞춰 바뀝니다.</p>
+          <div class="table-scroll excel-scroll" id="dept-table"></div>
+        </section>
       </div>
-    </section>
-
-    <section class="card upload-card">
-      <h2 class="card-title">엑셀로 거래 데이터 올리기</h2>
-      <form id="upload-form" class="upload-form">
-        <input id="file-input" type="file" accept=".xlsx,.xls" required />
-        <button type="submit" class="submit-btn">업로드</button>
-        <a class="template-link" href="/api/template">📥 엑셀 양식 다운로드</a>
-      </form>
-      <p class="upload-hint">
-        엑셀 첫 행(머리글): <b>거래일 · 사업부 · 매출 · 비용 · 수금상태 · 지역</b>
-        &nbsp;— 사업부는 이사/청소/부동산, 수금상태는 완료/미수. 양식을 받아 채워서 올리세요.
-      </p>
-      <p id="upload-message" class="entry-message" role="status"></p>
-    </section>
-
-    <section class="kpi-grid" id="kpi-grid" aria-label="핵심 지표"></section>
-
-    <section class="chart-stack">
-      <figure class="card chart-section">
-        <figcaption class="card-title">사업부별 매출 비중</figcaption>
-        <p class="chart-desc">이사·청소·부동산이 전체 매출에서 차지하는 비율입니다.</p>
-        <div class="chart-box"><canvas id="chart-share"></canvas></div>
-        <div class="table-scroll" id="tbl-share"></div>
-      </figure>
-
-      <figure class="card chart-section">
-        <figcaption class="card-title">월별 사업부별 매출 추이</figcaption>
-        <p class="chart-desc">달마다 각 사업부가 올린 매출을 쌓아 보여줍니다.</p>
-        <div class="chart-box"><canvas id="chart-stacked"></canvas></div>
-        <div class="table-scroll" id="tbl-stacked"></div>
-      </figure>
-
-      <figure class="card chart-section">
-        <figcaption class="card-title">월별 매출 · 비용 · 순이익</figcaption>
-        <p class="chart-desc">막대는 매출·비용, 선은 순이익(매출−비용)입니다.</p>
-        <div class="chart-box"><canvas id="chart-monthly"></canvas></div>
-        <div class="table-scroll" id="tbl-monthly"></div>
-      </figure>
-
-      <figure class="card chart-section">
-        <figcaption class="card-title">사업부별 수금 현황</figcaption>
-        <p class="chart-desc">사업부별로 수금완료 금액과 아직 못 받은 미수금을 비교합니다.</p>
-        <div class="chart-box"><canvas id="chart-collection"></canvas></div>
-        <div class="table-scroll" id="tbl-collection"></div>
-      </figure>
-    </section>
-  </main>
+    </main>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <script src="dashboard.js"></script>
