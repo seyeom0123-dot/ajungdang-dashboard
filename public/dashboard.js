@@ -33,7 +33,7 @@ const pct = (x) => (isFinite(x) ? x.toFixed(1) : "0.0") + "%";
 
 // ── 상태 ─────────────────────────────────────────────────────
 let ALL = [];
-const state = { fromMonth: 1, toMonth: 12, page: "전체" };
+const state = { fromMonth: 1, toMonth: 12, page: "전체", deptMode: "월별" };
 const charts = {};
 
 // ── 데이터 로드 ───────────────────────────────────────────────
@@ -311,16 +311,17 @@ function renderDeptView(unit) {
     byMonth[k].cost += Number(d.cost);
   }
   const keys = Object.keys(byMonth).sort();
+  const isCum = state.deptMode === "누적";
   let cr = 0, cc = 0;
   const mrows = keys.map((k) => {
-    const rev = byMonth[k].rev, cost = byMonth[k].cost, pf = rev - cost;
-    cr += rev; cc += cost;
-    return [mLabel(k), wonShort(rev), wonShort(cost), wonShort(pf), wonShort(cr), wonShort(cc), wonShort(cr - cc)];
+    cr += byMonth[k].rev; cc += byMonth[k].cost;
+    const R = isCum ? cr : byMonth[k].rev;
+    const C = isCum ? cc : byMonth[k].cost;
+    return [mLabel(k), wonShort(R), wonShort(C), wonShort(R - C)];
   });
-  mrows.push(["연간 합계", wonShort(cr), wonShort(cc), wonShort(cr - cc), "—", "—", "—"]);
-  document.getElementById("dept-monthly-table").innerHTML = tableHTML(
-    ["월", "매출", "지출", "영업이익", "누적 매출", "누적 지출", "누적 이익"], mrows
-  );
+  mrows.push(["연간 합계", wonShort(cr), wonShort(cc), wonShort(cr - cc)]);
+  const heads = isCum ? ["월", "누적 매출", "누적 지출", "누적 이익"] : ["월", "매출", "지출", "영업이익"];
+  document.getElementById("dept-monthly-table").innerHTML = tableHTML(heads, mrows);
 
   // 2) 엑셀 양식 거래 내역
   document.getElementById("dept-count").textContent = `${deals.length.toLocaleString("ko-KR")}건`;
@@ -395,6 +396,14 @@ function wireFilters() {
     btn.addEventListener("click", () => {
       state.page = btn.dataset.page;
       setActive("#page-menu", btn);
+      render();
+    })
+  );
+
+  document.querySelectorAll("#dept-mode button").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      state.deptMode = btn.dataset.mode;
+      setActive("#dept-mode", btn);
       render();
     })
   );

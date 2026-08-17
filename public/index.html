@@ -92,8 +92,14 @@
 
       <div id="dept-view" hidden>
         <section class="card">
-          <h2 class="card-title" id="dept-monthly-title">월별 매출 · 지출 상세 (누적 포함)</h2>
-          <p class="chart-desc">월별 매출·지출(영업비용)·영업이익과, 위에서부터 쌓이는 누적 합계입니다. 맨 아래는 연간(2026) 합계.</p>
+          <div class="dept-head">
+            <h2 class="card-title" id="dept-monthly-title">월별 매출 · 지출 상세</h2>
+            <div class="filter-group" id="dept-mode" role="group" aria-label="보기 방식">
+              <button data-mode="월별" class="active">월별</button>
+              <button data-mode="누적">누적</button>
+            </div>
+          </div>
+          <p class="chart-desc">월별 매출·지출(영업비용)·영업이익입니다. 오른쪽 <b>‘누적’</b>을 누르면 위에서부터 쌓이는 누적 합계로 볼 수 있어요. 맨 아래는 연간(2026) 합계.</p>
           <div class="table-scroll" id="dept-monthly-table"></div>
         </section>
 
