@@ -1,48 +1,52 @@
 :root {
   color-scheme: light;
-  --page: #f9f9f7;
-  --surface: #fcfcfb;
-  --text-primary: #0b0b0b;
-  --text-secondary: #52514e;
-  --muted: #898781;
-  --grid: #e1e0d9;
-  --border: rgba(11, 11, 11, 0.10);
-  --unit-이사: #2a78d6;
-  --unit-청소: #eb6834;
-  --unit-부동산: #1baf7a;
-  --good: #0ca30c;
-  --critical: #d03b3b;
-  --accent: #2a78d6;
+  --page: #eef3fb;          /* 연한 파랑빛 회색 */
+  --surface: #ffffff;        /* 흰색 카드 */
+  --text-primary: #16203a;   /* 진한 남색 */
+  --text-secondary: #566079;
+  --muted: #8b93a3;
+  --grid: #e5eaf3;
+  --border: rgba(21, 92, 225, 0.14);
+  --unit-이사: #155ce1;      /* 아정당 브랜드 파랑 */
+  --unit-청소: #f0803a;
+  --unit-부동산: #12b08a;
+  --good: #12a150;
+  --critical: #e14b4b;
+  --accent: #155ce1;         /* 아정당 브랜드 파랑 */
 }
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) {
     color-scheme: dark;
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --text-primary: #ffffff;
-    --text-secondary: #c3c2b7;
-    --muted: #898781;
-    --grid: #2c2c2a;
+    --page: #0b1120;
+    --surface: #141d31;
+    --text-primary: #eef2fb;
+    --text-secondary: #aab4c8;
+    --muted: #7f8aa0;
+    --grid: #243149;
     --border: rgba(255, 255, 255, 0.10);
-    --unit-이사: #3987e5;
-    --unit-청소: #d95926;
-    --unit-부동산: #199e70;
-    --accent: #3987e5;
+    --unit-이사: #4d8bff;
+    --unit-청소: #f0803a;
+    --unit-부동산: #17c39a;
+    --good: #2bb765;
+    --critical: #ef6060;
+    --accent: #4d8bff;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page: #0d0d0d;
-  --surface: #1a1a19;
-  --text-primary: #ffffff;
-  --text-secondary: #c3c2b7;
-  --muted: #898781;
-  --grid: #2c2c2a;
+  --page: #0b1120;
+  --surface: #141d31;
+  --text-primary: #eef2fb;
+  --text-secondary: #aab4c8;
+  --muted: #7f8aa0;
+  --grid: #243149;
   --border: rgba(255, 255, 255, 0.10);
-  --unit-이사: #3987e5;
-  --unit-청소: #d95926;
-  --unit-부동산: #199e70;
-  --accent: #3987e5;
+  --unit-이사: #4d8bff;
+  --unit-청소: #f0803a;
+  --unit-부동산: #17c39a;
+  --good: #2bb765;
+  --critical: #ef6060;
+  --accent: #4d8bff;
 }
 
 * { box-sizing: border-box; }
@@ -51,7 +55,8 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--text-primary);
-  font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
+  font-family: "Pretendard", "Pretendard Variable", "Apple SD Gothic Neo",
+    "Malgun Gothic", -apple-system, sans-serif;
   line-height: 1.5;
 }
 
@@ -68,6 +73,28 @@ body {
   gap: 16px;
   flex-wrap: wrap;
   margin-bottom: 20px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.logo {
+  height: 40px;
+  width: auto;
+  display: block;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .logo {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 5px 9px;
+  }
+}
+:root[data-theme="dark"] .logo {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 5px 9px;
 }
 .eyebrow {
   margin: 0 0 4px;
@@ -131,6 +158,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 18px 20px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(21, 92, 225, 0.05);
 }
 .card-title {
   margin: 0 0 14px;
@@ -196,6 +224,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 16px 18px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(21, 92, 225, 0.05);
 }
 .kpi .label {
   font-size: 13px;
