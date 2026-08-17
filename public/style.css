@@ -7,9 +7,12 @@
   --muted: #8b93a3;
   --grid: #e5eaf3;
   --border: rgba(21, 92, 225, 0.14);
-  --unit-이사: #155ce1;      /* 아정당 브랜드 파랑 */
-  --unit-청소: #f0803a;
-  --unit-부동산: #12b08a;
+  --unit-이사: #155ce1;      /* 브랜드 파랑 */
+  --unit-청소: #6b9be3;      /* 중간 파랑 */
+  --unit-부동산: #9aa7bd;    /* 청회색 */
+  --cost: #aab4c6;           /* 비용: 회색 */
+  --profit: #0b3d91;         /* 순이익: 진한 파랑 */
+  --unpaid: #9aa7bd;         /* 미수: 회색 */
   --good: #12a150;
   --critical: #e14b4b;
   --accent: #155ce1;         /* 아정당 브랜드 파랑 */
@@ -25,8 +28,11 @@
     --grid: #243149;
     --border: rgba(255, 255, 255, 0.10);
     --unit-이사: #4d8bff;
-    --unit-청소: #f0803a;
-    --unit-부동산: #17c39a;
+    --unit-청소: #7ea8ef;
+    --unit-부동산: #94a3b8;
+    --cost: #64748b;
+    --profit: #9dc0ff;
+    --unpaid: #64748b;
     --good: #2bb765;
     --critical: #ef6060;
     --accent: #4d8bff;
@@ -42,8 +48,11 @@
   --grid: #243149;
   --border: rgba(255, 255, 255, 0.10);
   --unit-이사: #4d8bff;
-  --unit-청소: #f0803a;
-  --unit-부동산: #17c39a;
+  --unit-청소: #7ea8ef;
+  --unit-부동산: #94a3b8;
+  --cost: #64748b;
+  --profit: #9dc0ff;
+  --unpaid: #64748b;
   --good: #2bb765;
   --critical: #ef6060;
   --accent: #4d8bff;
@@ -55,8 +64,8 @@ body {
   margin: 0;
   background: var(--page);
   color: var(--text-primary);
-  font-family: "Pretendard", "Pretendard Variable", "Apple SD Gothic Neo",
-    "Malgun Gothic", -apple-system, sans-serif;
+  font-family: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic",
+    -apple-system, sans-serif;
   line-height: 1.5;
 }
 
@@ -151,6 +160,26 @@ body {
   background: var(--accent);
   color: #fff;
 }
+.month-range {
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.month-range .range-label { font-weight: 700; color: var(--text-primary); }
+.month-range .range-sep { font-weight: 600; }
+.month-range input {
+  width: 56px;
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--page);
+  color: var(--text-primary);
+}
 
 /* 카드 공통 */
 .card {
@@ -164,6 +193,51 @@ body {
   margin: 0 0 14px;
   font-size: 15px;
   font-weight: 700;
+}
+
+/* 엑셀 업로드 */
+.upload-card { margin-bottom: 20px; }
+.upload-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.upload-form input[type="file"] {
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--page);
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+.upload-form input[type="file"]::file-selector-button {
+  font: inherit;
+  font-weight: 600;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 12px;
+  margin-right: 10px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+.template-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.template-link:hover { text-decoration: underline; }
+.upload-hint {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
 }
 
 /* 입력 폼 */

@@ -8,14 +8,16 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon.svg" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="app">
     <header class="app-header">
       <div class="brand">
-        <img class="logo" src="logo.webp" alt="아정당" width="132" height="40" />
+        <img class="logo" src="logo.png" alt="아정당" width="145" height="44" />
         <div>
           <p class="eyebrow">재무 대시보드</p>
           <h1>이사 · 청소 · 부동산 재무 현황</h1>
@@ -25,11 +27,12 @@
     </header>
 
     <section class="filters" aria-label="필터">
-      <div class="filter-group" id="period-filter" role="group" aria-label="기간">
-        <button data-period="3">최근 3개월</button>
-        <button data-period="6">최근 6개월</button>
-        <button data-period="12" class="active">최근 12개월</button>
-        <button data-period="0">전체</button>
+      <div class="filter-group month-range" id="month-filter" role="group" aria-label="월 선택">
+        <span class="range-label">2026년</span>
+        <input id="from-month" type="number" min="1" max="12" value="1" inputmode="numeric" aria-label="시작 월" />
+        <span class="range-sep">월 ~</span>
+        <input id="to-month" type="number" min="1" max="12" value="12" inputmode="numeric" aria-label="종료 월" />
+        <span class="range-sep">월</span>
       </div>
       <div class="filter-group" id="unit-filter" role="group" aria-label="사업부">
         <button data-unit="" class="active">전체 사업부</button>
@@ -39,52 +42,23 @@
       </div>
     </section>
 
-    <section class="card entry-card">
-      <h2 class="card-title">거래 데이터 입력</h2>
-      <form id="entry-form" class="entry-form">
-        <div class="field">
-          <label for="in-date">거래일</label>
-          <input id="in-date" name="deal_date" type="date" required />
-        </div>
-        <div class="field">
-          <label for="in-unit">사업부</label>
-          <select id="in-unit" name="business_unit" required>
-            <option value="이사">이사</option>
-            <option value="청소">청소</option>
-            <option value="부동산">부동산</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="in-revenue">매출 (원)</label>
-          <input id="in-revenue" name="revenue" type="number" min="0" step="1000" required placeholder="예: 800000" />
-        </div>
-        <div class="field">
-          <label for="in-cost">비용 (원)</label>
-          <input id="in-cost" name="cost" type="number" min="0" step="1000" required placeholder="예: 500000" />
-        </div>
-        <div class="field">
-          <label for="in-status">수금상태</label>
-          <select id="in-status" name="status">
-            <option value="완료">완료</option>
-            <option value="미수">미수</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="in-region">지역</label>
-          <input id="in-region" name="region" type="text" maxlength="20" placeholder="예: 서울" />
-        </div>
-        <button type="submit" class="submit-btn">추가</button>
-        <p id="entry-message" class="entry-message" role="status"></p>
+    <section class="card upload-card">
+      <h2 class="card-title">엑셀로 거래 데이터 올리기</h2>
+      <form id="upload-form" class="upload-form">
+        <input id="file-input" type="file" accept=".xlsx,.xls" required />
+        <button type="submit" class="submit-btn">업로드</button>
+        <a class="template-link" href="/api/template">📥 엑셀 양식 다운로드</a>
       </form>
+      <p class="upload-hint">
+        엑셀 첫 행(머리글): <b>거래일 · 사업부 · 매출 · 비용 · 수금상태 · 지역</b>
+        &nbsp;— 사업부는 이사/청소/부동산, 수금상태는 완료/미수. 양식을 받아 채워서 올리세요.
+      </p>
+      <p id="upload-message" class="entry-message" role="status"></p>
     </section>
 
     <section class="kpi-grid" id="kpi-grid" aria-label="핵심 지표"></section>
 
     <section class="chart-grid">
-      <figure class="card">
-        <figcaption class="card-title">월별 매출 · 비용 · 순이익</figcaption>
-        <div class="chart-box"><canvas id="chart-monthly"></canvas></div>
-      </figure>
       <figure class="card">
         <figcaption class="card-title">사업부별 매출 비중</figcaption>
         <div class="chart-box"><canvas id="chart-share"></canvas></div>
@@ -92,6 +66,10 @@
       <figure class="card">
         <figcaption class="card-title">월별 사업부별 매출 추이</figcaption>
         <div class="chart-box"><canvas id="chart-stacked"></canvas></div>
+      </figure>
+      <figure class="card">
+        <figcaption class="card-title">월별 매출 · 비용 · 순이익</figcaption>
+        <div class="chart-box"><canvas id="chart-monthly"></canvas></div>
       </figure>
       <figure class="card">
         <figcaption class="card-title">사업부별 수금 현황 (완료 vs 미수)</figcaption>

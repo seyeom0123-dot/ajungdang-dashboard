@@ -1,14 +1,18 @@
 // Render에 배포되는 Node 서버.
 // - public/ 정적 파일(대시보드 앱)을 서빙
-// - GET  /api/deals  거래 데이터 조회 (Supabase 또는 더미 폴백)
-// - POST /api/deals  입력 폼에서 거래 1건 추가
+// - GET  /api/deals     거래 데이터 조회 (Supabase 또는 더미 폴백)
+// - POST /api/upload    엑셀 파일 업로드 → 여러 거래 일괄 추가
+// - GET  /api/template  입력용 엑셀 양식 다운로드
 
 import express from "express";
+import multer from "multer";
+import * as XLSX from "xlsx";
 import { createClient } from "@supabase/supabase-js";
 import { generateDeals } from "./dummy.js";
 
 const app = express();
 const port = process.env.PORT || 3000;
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 app.use(express.json());
 app.use(express.static("public"));
@@ -76,6 +80,80 @@ app.post("/api/deals", async (req, res) => {
   const { data, error } = await supabase.from("deals").insert(deal).select().single();
   if (error) return res.status(500).json({ error: error.message });
   res.status(201).json({ source: "supabase", deal: data });
+});
+
+// 엑셀 셀 → 거래일 문자열(YYYY-MM-DD). 날짜 셀(Date)·문자열 모두 처리.
+function toDateStr(v) {
+  if (v instanceof Date) {
+    const y = v.getFullYear(), m = String(v.getMonth() + 1).padStart(2, "0"), d = String(v.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(v || "").trim().replace(/[./]/g, "-");
+  const mm = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  return mm ? `${mm[1]}-${mm[2].padStart(2, "0")}-${mm[3].padStart(2, "0")}` : s;
+}
+
+// 엑셀 한 행(머리글 키) → 정규화된 거래 or 오류문자열
+function normalizeRow(r) {
+  return validateDeal({
+    deal_date: toDateStr(r["거래일"]),
+    business_unit: String(r["사업부"] || "").trim(),
+    revenue: r["매출"],
+    cost: r["비용"],
+    status: String(r["수금상태"] || "완료").trim(),
+    region: r["지역"],
+  });
+}
+
+app.post("/api/upload", upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "파일이 없습니다." });
+  let rows;
+  try {
+    const wb = XLSX.read(req.file.buffer, { type: "buffer", cellDates: true });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    if (!sheet) throw new Error("시트를 찾을 수 없습니다.");
+    rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  } catch (e) {
+    return res.status(400).json({ error: "엑셀을 읽지 못했습니다: " + e.message });
+  }
+
+  const deals = [], errors = [];
+  rows.forEach((r, i) => {
+    const d = normalizeRow(r);
+    if (typeof d === "string") errors.push(`${i + 2}행: ${d}`);
+    else deals.push(d);
+  });
+  if (!deals.length) {
+    return res.status(400).json({ error: "유효한 행이 없습니다. 머리글(거래일·사업부·매출·비용·수금상태·지역)과 값을 확인하세요.", errors: errors.slice(0, 5) });
+  }
+
+  if (!supabase) {
+    fallback.push(...deals);
+    fallback.sort((a, b) => (a.deal_date < b.deal_date ? -1 : 1));
+    return res.json({ source: "dummy", inserted: deals.length, skipped: errors.length, errors: errors.slice(0, 5) });
+  }
+  const CHUNK = 500;
+  for (let i = 0; i < deals.length; i += CHUNK) {
+    const { error } = await supabase.from("deals").insert(deals.slice(i, i + CHUNK));
+    if (error) return res.status(500).json({ error: error.message });
+  }
+  res.json({ source: "supabase", inserted: deals.length, skipped: errors.length, errors: errors.slice(0, 5) });
+});
+
+app.get("/api/template", (req, res) => {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ["거래일", "사업부", "매출", "비용", "수금상태", "지역"],
+    ["2026-01-15", "이사", 800000, 500000, "완료", "서울"],
+    ["2026-02-03", "청소", 150000, 90000, "미수", "경기"],
+    ["2026-03-10", "부동산", 1200000, 300000, "완료", "인천"],
+  ]);
+  ws["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 8 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "거래");
+  const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+  res.setHeader("Content-Disposition", "attachment; filename=ajungdang-template.xlsx");
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.send(buf);
 });
 
 app.listen(port, () => {

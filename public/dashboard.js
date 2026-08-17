@@ -10,6 +10,9 @@ const COLOR = {
   청소: css("--unit-청소"),
   부동산: css("--unit-부동산"),
   accent: css("--accent"),
+  cost: css("--cost"),
+  profit: css("--profit"),
+  unpaid: css("--unpaid"),
   good: css("--good"),
   critical: css("--critical"),
   muted: css("--muted"),
@@ -30,7 +33,7 @@ const pct = (x) => (isFinite(x) ? x.toFixed(1) : "0.0") + "%";
 
 // ── 상태 ─────────────────────────────────────────────────────
 let ALL = [];
-const state = { period: 12, unit: "" };
+const state = { fromMonth: 1, toMonth: 12, unit: "" };
 const charts = {};
 
 // ── 데이터 로드 ───────────────────────────────────────────────
@@ -46,18 +49,15 @@ async function loadData() {
 }
 
 // ── 필터 ─────────────────────────────────────────────────────
-function cutoffDate() {
-  if (!state.period) return null;
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth() - (state.period - 1), 1);
-}
+// 거래일(YYYY-MM-DD)의 월(1~12)이 [fromMonth, toMonth] 범위에 드는 거래만.
 function filtered() {
-  const cut = cutoffDate();
-  return ALL.filter(
-    (d) =>
-      (!state.unit || d.business_unit === state.unit) &&
-      (!cut || new Date(d.deal_date) >= cut)
-  );
+  const lo = Math.min(state.fromMonth, state.toMonth);
+  const hi = Math.max(state.fromMonth, state.toMonth);
+  return ALL.filter((d) => {
+    if (state.unit && d.business_unit !== state.unit) return false;
+    const m = Number(d.deal_date.slice(5, 7));
+    return m >= lo && m <= hi;
+  });
 }
 
 // ── 집계 ─────────────────────────────────────────────────────
@@ -167,10 +167,10 @@ function renderMonthlyChart(months) {
       labels,
       datasets: [
         { label: "매출", data: revenue, backgroundColor: COLOR.accent, borderRadius: 4, order: 2 },
-        { label: "비용", data: cost, backgroundColor: COLOR.muted, borderRadius: 4, order: 2 },
+        { label: "비용", data: cost, backgroundColor: COLOR.cost, borderRadius: 4, order: 2 },
         {
-          label: "순이익", data: profit, type: "line", borderColor: COLOR.good,
-          backgroundColor: COLOR.good, borderWidth: 2, tension: 0.3, pointRadius: 3, order: 1,
+          label: "순이익", data: profit, type: "line", borderColor: COLOR.profit,
+          backgroundColor: COLOR.profit, borderWidth: 2, tension: 0.3, pointRadius: 3, order: 1,
         },
       ],
     },
@@ -242,8 +242,8 @@ function renderCollectionChart(unitAgg) {
     data: {
       labels: units,
       datasets: [
-        { label: "수금완료", data: done, backgroundColor: COLOR.good, borderColor: COLOR.surface, borderWidth: 2, borderRadius: 3 },
-        { label: "미수", data: rec, backgroundColor: COLOR.critical, borderColor: COLOR.surface, borderWidth: 2, borderRadius: 3 },
+        { label: "수금완료", data: done, backgroundColor: COLOR.accent, borderColor: COLOR.surface, borderWidth: 2, borderRadius: 3 },
+        { label: "미수", data: rec, backgroundColor: COLOR.unpaid, borderColor: COLOR.surface, borderWidth: 2, borderRadius: 3 },
       ],
     },
     options: {
@@ -290,15 +290,21 @@ function draw(id, config) {
   charts[id] = new Chart(document.getElementById(id), config);
 }
 
-// ── 필터 버튼 ─────────────────────────────────────────────────
+// ── 필터 ──────────────────────────────────────────────────────
 function wireFilters() {
-  document.querySelectorAll("#period-filter button").forEach((btn) =>
-    btn.addEventListener("click", () => {
-      state.period = Number(btn.dataset.period);
-      setActive("#period-filter", btn);
-      render();
-    })
-  );
+  const from = document.getElementById("from-month");
+  const to = document.getElementById("to-month");
+  const clamp = (v) => Math.min(12, Math.max(1, Math.round(Number(v) || 1)));
+  const onMonth = () => {
+    state.fromMonth = clamp(from.value);
+    state.toMonth = clamp(to.value);
+    render();
+  };
+  from.addEventListener("change", onMonth);
+  to.addEventListener("change", onMonth);
+  from.addEventListener("input", onMonth);
+  to.addEventListener("input", onMonth);
+
   document.querySelectorAll("#unit-filter button").forEach((btn) =>
     btn.addEventListener("click", () => {
       state.unit = btn.dataset.unit;
@@ -312,32 +318,29 @@ function setActive(group, btn) {
   btn.classList.add("active");
 }
 
-// ── 입력 폼 ───────────────────────────────────────────────────
-function wireForm() {
-  const form = document.getElementById("entry-form");
-  const msg = document.getElementById("entry-message");
-  // 오늘 날짜 기본값 (로컬 기준)
-  const now = new Date();
-  document.getElementById("in-date").value =
-    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+// ── 엑셀 업로드 ───────────────────────────────────────────────
+function wireUpload() {
+  const form = document.getElementById("upload-form");
+  const fileInput = document.getElementById("file-input");
+  const msg = document.getElementById("upload-message");
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const body = Object.fromEntries(new FormData(form).entries());
-    msg.textContent = "저장 중…";
+    if (!fileInput.files.length) return;
+    const data = new FormData();
+    data.append("file", fileInput.files[0]);
+    msg.textContent = "업로드 중…";
     msg.className = "entry-message";
     try {
-      const res = await fetch("/api/deals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const res = await fetch("/api/upload", { method: "POST", body: data });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "저장 실패");
-      msg.textContent = "추가되었습니다.";
+      if (!res.ok) throw new Error(json.error || "업로드 실패");
+      let text = `${json.inserted.toLocaleString("ko-KR")}건 추가 완료`;
+      if (json.skipped) text += ` · 건너뜀 ${json.skipped}건`;
+      msg.textContent = text;
       msg.className = "entry-message ok";
-      form.querySelector("#in-revenue").value = "";
-      form.querySelector("#in-cost").value = "";
+      if (json.errors && json.errors.length) msg.textContent += ` (${json.errors[0]} 등)`;
+      form.reset();
       await loadData();
     } catch (err) {
       msg.textContent = "오류: " + err.message;
@@ -352,7 +355,7 @@ if (window.Chart) {
   Chart.defaults.color = COLOR.text2;
 }
 wireFilters();
-wireForm();
+wireUpload();
 loadData();
 
 // 서비스워커 등록(앱 설치 지원)
