@@ -12,7 +12,7 @@
   --unit-부동산: #9aa7bd;    /* 청회색 */
   --cost: #aab4c6;           /* 비용: 회색 */
   --profit: #0b3d91;         /* 순이익: 진한 파랑 */
-  --unpaid: #9aa7bd;         /* 미수: 회색 */
+  --unpaid: #d3dae4;         /* 미수: 연한 회색 */
   --good: #12a150;
   --critical: #e14b4b;
   --accent: #155ce1;         /* 아정당 브랜드 파랑 */
@@ -32,7 +32,7 @@
     --unit-부동산: #94a3b8;
     --cost: #64748b;
     --profit: #9dc0ff;
-    --unpaid: #64748b;
+    --unpaid: #8a94a6;
     --good: #2bb765;
     --critical: #ef6060;
     --accent: #4d8bff;
@@ -52,7 +52,7 @@
   --unit-부동산: #94a3b8;
   --cost: #64748b;
   --profit: #9dc0ff;
-  --unpaid: #64748b;
+  --unpaid: #8a94a6;
   --good: #2bb765;
   --critical: #ef6060;
   --accent: #4d8bff;
@@ -386,10 +386,11 @@ body {
   font-weight: 700;
 }
 .unit-tag {
+  display: block;
   font-size: 12px;
   font-weight: 600;
   color: var(--muted);
-  margin-left: 6px;
+  margin: 0 0 8px;
 }
 
 /* 엑셀 업로드 */
