@@ -386,13 +386,19 @@ body {
   font-weight: 700;
 }
 .unit-tag {
-  display: block;
-  text-align: right;
   font-size: 12px;
   font-weight: 600;
   color: var(--muted);
-  margin: 0 0 8px;
+  white-space: nowrap;
 }
+/* 제목 + 단위표시 한 줄 (제목 왼쪽, 단위 오른쪽) */
+.card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dept-head-right { display: flex; align-items: center; gap: 12px; }
 
 /* 엑셀 업로드 */
 .upload-card { margin-bottom: 20px; }
