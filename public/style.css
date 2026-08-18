@@ -398,7 +398,14 @@ body {
   justify-content: space-between;
   gap: 12px;
 }
-.dept-head-right { display: flex; align-items: center; gap: 12px; }
+.dept-head-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+/* 재무상태표: 하단 총계행 강조 해제 + 합계열 강조 */
+.fin-table tbody tr:last-child td { border-top: 0; font-weight: 400; background: transparent; }
+.fin-table td:last-child, .fin-table th:last-child {
+  font-weight: 700;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
 
 /* 엑셀 업로드 */
 .upload-card { margin-bottom: 20px; }

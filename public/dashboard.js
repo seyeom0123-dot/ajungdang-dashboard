@@ -151,6 +151,7 @@ function render() {
 
   if (isAll) {
     const agg = aggregate(filtered());
+    renderFinanceTable(agg.unitAgg, agg.totals);
     renderStackedChart(agg.months);
     renderStackedTable(agg.months);
     renderCollectionChart(agg.unitAgg);
@@ -227,12 +228,28 @@ function renderCollectionChart(unitAgg) {
 // ── 차트별 설명 표 ────────────────────────────────────────────
 const mLabel = (key) => `${Number(key.slice(5, 7))}월`;
 const dot = (u) => `<span class="unit-dot" style="background:${COLOR[u]}"></span>${u}`;
-function tableHTML(headers, rows) {
+function tableHTML(headers, rows, cls = "") {
   const head = headers.map((h, i) => `<th${i === 0 ? ' class="lead"' : ""}>${h}</th>`).join("");
   const body = rows
     .map((r) => `<tr>${r.map((c, i) => `<td${i === 0 ? ' class="lead"' : ""}>${c}</td>`).join("")}</tr>`)
     .join("");
-  return `<table class="data-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  return `<table class="data-table ${cls}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+// 재무상태표(선택 월 기준, 천만원): 항목 행 × 사업부·합계 열
+function renderFinanceTable(unitAgg, totals) {
+  const get = (u) => unitAgg[u] || { revenue: 0, cost: 0, receivable: 0 };
+  const op = (a) => a.revenue - a.cost;
+  const tRev = totals.revenue, tCost = totals.cost, tRecv = totals.receivable;
+  const rows = [
+    ["매출", ...UNIT_ORDER.map((u) => tenMan(get(u).revenue)), tenMan(tRev)],
+    ["영업비용", ...UNIT_ORDER.map((u) => tenMan(get(u).cost)), tenMan(tCost)],
+    ["영업이익", ...UNIT_ORDER.map((u) => tenMan(op(get(u)))), tenMan(tRev - tCost)],
+    ["이익률", ...UNIT_ORDER.map((u) => { const a = get(u); return pct(a.revenue ? (op(a) / a.revenue) * 100 : 0); }), pct(tRev ? ((tRev - tCost) / tRev) * 100 : 0)],
+    ["수금완료", ...UNIT_ORDER.map((u) => { const a = get(u); return tenMan(a.revenue - a.receivable); }), tenMan(tRev - tRecv)],
+    ["미수금", ...UNIT_ORDER.map((u) => tenMan(get(u).receivable)), tenMan(tRecv)],
+  ];
+  document.getElementById("tbl-finance").innerHTML = tableHTML(["항목", "이사", "청소", "부동산", "합계"], rows, "fin-table");
 }
 
 // 월별 사업부별 매출 (천만원 단위)
