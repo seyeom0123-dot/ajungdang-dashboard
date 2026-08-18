@@ -385,6 +385,12 @@ body {
   font-size: 15px;
   font-weight: 700;
 }
+.unit-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 6px;
+}
 
 /* 엑셀 업로드 */
 .upload-card { margin-bottom: 20px; }

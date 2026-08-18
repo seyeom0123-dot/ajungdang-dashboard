@@ -54,45 +54,17 @@
         </label>
       </section>
 
-      <section class="card upload-card">
-        <h2 class="card-title">엑셀로 거래 데이터 올리기</h2>
-        <form id="upload-form" class="upload-form">
-          <input id="file-input" type="file" accept=".xlsx,.xls" required />
-          <button type="submit" class="submit-btn">업로드</button>
-          <a class="template-link" href="/api/template">📥 엑셀 양식 다운로드</a>
-        </form>
-        <p class="upload-hint">
-          엑셀 첫 행(머리글): <b>거래일 · 사업부 · 매출 · 비용 · 수금상태 · 지역</b>
-          &nbsp;— 사업부는 이사/청소/부동산, 수금상태는 완료/미수. 양식을 받아 채워서 올리세요.
-        </p>
-        <p id="upload-message" class="entry-message" role="status"></p>
-      </section>
-
       <div id="dashboard-view">
         <section class="chart-stack">
           <figure class="card chart-section">
-            <figcaption class="card-title">사업부별 매출 비중</figcaption>
-            <p class="chart-desc">이사·청소·부동산이 전체 매출에서 차지하는 비율입니다.</p>
-            <div class="chart-box"><canvas id="chart-share"></canvas></div>
-            <div class="table-scroll" id="tbl-share"></div>
-          </figure>
-
-          <figure class="card chart-section">
-            <figcaption class="card-title">월별 사업부별 매출 추이</figcaption>
+            <figcaption class="card-title">월별 사업부별 매출 추이 <span class="unit-tag">단위: 천만원</span></figcaption>
             <p class="chart-desc">달마다 각 사업부가 올린 매출을 쌓아 보여줍니다.</p>
             <div class="chart-box"><canvas id="chart-stacked"></canvas></div>
             <div class="table-scroll" id="tbl-stacked"></div>
           </figure>
 
           <figure class="card chart-section">
-            <figcaption class="card-title">월별 매출 · 영업비용 · 영업이익</figcaption>
-            <p class="chart-desc">막대는 매출·영업비용, 선은 영업이익(매출−영업비용)입니다.</p>
-            <div class="chart-box"><canvas id="chart-monthly"></canvas></div>
-            <div class="table-scroll" id="tbl-monthly"></div>
-          </figure>
-
-          <figure class="card chart-section">
-            <figcaption class="card-title">사업부별 수금 현황</figcaption>
+            <figcaption class="card-title">사업부별 수금 현황 <span class="unit-tag">단위: 천만원</span></figcaption>
             <p class="chart-desc">사업부별로 수금완료 금액과 아직 못 받은 미수금을 비교합니다.</p>
             <div class="chart-box"><canvas id="chart-collection"></canvas></div>
             <div class="table-scroll" id="tbl-collection"></div>
@@ -123,7 +95,7 @@
 
         <section class="card" id="dept-monthly-section">
           <div class="dept-head">
-            <h2 class="card-title">월별 매출 · 지출 상세</h2>
+            <h2 class="card-title">월별 매출 · 지출 상세 <span class="unit-tag">단위: 천만원</span></h2>
             <div class="filter-group" id="dept-mode" role="group" aria-label="보기 방식">
               <button data-mode="월별" class="active">월별</button>
               <button data-mode="누적">누적</button>

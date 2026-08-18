@@ -30,6 +30,8 @@ function wonShort(n) {
   return Math.round(n).toLocaleString("ko-KR");
 }
 const pct = (x) => (isFinite(x) ? x.toFixed(1) : "0.0") + "%";
+// 천만원(=1e7) 단위. 값만 반환(단위 라벨은 화면에 별도 표시).
+const tenMan = (n) => (n / 1e7).toLocaleString("ko-KR", { maximumFractionDigits: 1 });
 
 // ── 상태 ─────────────────────────────────────────────────────
 let ALL = [];
@@ -149,12 +151,8 @@ function render() {
 
   if (isAll) {
     const agg = aggregate(filtered());
-    renderShareChart(agg.unitRevenue);
-    renderShareTable(agg.unitRevenue);
     renderStackedChart(agg.months);
     renderStackedTable(agg.months);
-    renderMonthlyChart(agg.months);
-    renderMonthlyTable(agg.months);
     renderCollectionChart(agg.unitAgg);
     renderCollectionTable(agg.unitAgg);
   } else {
@@ -173,70 +171,15 @@ function baseScales(stacked = false) {
     y: {
       stacked,
       grid: { color: COLOR.grid },
-      ticks: { color: COLOR.text2, callback: (v) => wonShort(v) },
+      ticks: { color: COLOR.text2, callback: (v) => tenMan(v) },
     },
   };
 }
-function moneyTooltip() {
+// 천만원 단위 툴팁
+function tenManTooltip() {
   return {
-    callbacks: { label: (ctx) => `${ctx.dataset.label}: ${wonFull(ctx.parsed.y ?? ctx.parsed)}` },
+    callbacks: { label: (ctx) => `${ctx.dataset.label}: ${tenMan(ctx.parsed.y ?? ctx.parsed)}천만원` },
   };
-}
-
-function renderMonthlyChart(months) {
-  const keys = sortedMonths(months);
-  const labels = keys.map(monthLabel);
-  const revenue = keys.map((k) => months[k].revenue);
-  const cost = keys.map((k) => months[k].cost);
-  const profit = keys.map((k) => months[k].revenue - months[k].cost);
-  draw("chart-monthly", {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [
-        { label: "매출", data: revenue, backgroundColor: COLOR.accent, borderRadius: 4, order: 2 },
-        { label: "영업비용", data: cost, backgroundColor: COLOR.cost, borderRadius: 4, order: 2 },
-        {
-          label: "영업이익", data: profit, type: "line", borderColor: COLOR.profit,
-          backgroundColor: COLOR.profit, borderWidth: 2, tension: 0.3, pointRadius: 3, order: 1,
-        },
-      ],
-    },
-    options: {
-      scales: baseScales(false),
-      plugins: { legend: { labels: { color: COLOR.text2 } }, tooltip: moneyTooltip() },
-    },
-  });
-}
-
-function renderShareChart(unitRevenue) {
-  const units = UNIT_ORDER.filter((u) => unitRevenue[u]);
-  const data = units.map((u) => unitRevenue[u]);
-  const total = data.reduce((a, b) => a + b, 0) || 1;
-  draw("chart-share", {
-    type: "doughnut",
-    data: {
-      labels: units,
-      datasets: [
-        {
-          data,
-          backgroundColor: units.map((u) => COLOR[u]),
-          borderColor: COLOR.surface,
-          borderWidth: 2,
-        },
-      ],
-    },
-    options: {
-      plugins: {
-        legend: { position: "bottom", labels: { color: COLOR.text2 } },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => `${ctx.label}: ${wonFull(ctx.parsed)} (${pct((ctx.parsed / total) * 100)})`,
-          },
-        },
-      },
-    },
-  });
 }
 
 function renderStackedChart(months) {
@@ -256,7 +199,7 @@ function renderStackedChart(months) {
     data: { labels, datasets },
     options: {
       scales: baseScales(true),
-      plugins: { legend: { labels: { color: COLOR.text2 } }, tooltip: moneyTooltip() },
+      plugins: { legend: { labels: { color: COLOR.text2 } }, tooltip: tenManTooltip() },
     },
   });
 }
@@ -276,7 +219,7 @@ function renderCollectionChart(unitAgg) {
     },
     options: {
       scales: baseScales(true),
-      plugins: { legend: { labels: { color: COLOR.text2 } }, tooltip: moneyTooltip() },
+      plugins: { legend: { labels: { color: COLOR.text2 } }, tooltip: tenManTooltip() },
     },
   });
 }
@@ -292,42 +235,19 @@ function tableHTML(headers, rows) {
   return `<table class="data-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
-// 사업부별 매출 비중
-function renderShareTable(unitRevenue) {
-  const units = UNIT_ORDER.filter((u) => unitRevenue[u]);
-  const total = units.reduce((s, u) => s + unitRevenue[u], 0) || 1;
-  const rows = units.map((u) => [dot(u), wonShort(unitRevenue[u]), pct((unitRevenue[u] / total) * 100)]);
-  rows.push(["합계", wonShort(total), "100.0%"]);
-  document.getElementById("tbl-share").innerHTML = tableHTML(["사업부", "매출", "비중"], rows);
-}
-
-// 월별 사업부별 매출
+// 월별 사업부별 매출 (천만원 단위)
 function renderStackedTable(months) {
   const keys = sortedMonths(months);
   const sums = { 이사: 0, 청소: 0, 부동산: 0 };
   const rows = keys.map((k) => {
     const bu = months[k].byUnit;
     let tot = 0;
-    const cells = UNIT_ORDER.map((u) => { sums[u] += bu[u] || 0; tot += bu[u] || 0; return wonShort(bu[u] || 0); });
-    return [mLabel(k), ...cells, wonShort(tot)];
+    const cells = UNIT_ORDER.map((u) => { sums[u] += bu[u] || 0; tot += bu[u] || 0; return tenMan(bu[u] || 0); });
+    return [mLabel(k), ...cells, tenMan(tot)];
   });
   const grand = UNIT_ORDER.reduce((s, u) => s + sums[u], 0);
-  rows.push(["합계", ...UNIT_ORDER.map((u) => wonShort(sums[u])), wonShort(grand)]);
+  rows.push(["합계", ...UNIT_ORDER.map((u) => tenMan(sums[u])), tenMan(grand)]);
   document.getElementById("tbl-stacked").innerHTML = tableHTML(["월", "이사", "청소", "부동산", "합계"], rows);
-}
-
-// 월별 매출·비용·순이익
-function renderMonthlyTable(months) {
-  const keys = sortedMonths(months);
-  let sr = 0, sc = 0;
-  const rows = keys.map((k) => {
-    const rev = months[k].revenue, cost = months[k].cost, pf = rev - cost;
-    sr += rev; sc += cost;
-    return [mLabel(k), wonShort(rev), wonShort(cost), wonShort(pf), pct(rev ? (pf / rev) * 100 : 0)];
-  });
-  const gpf = sr - sc;
-  rows.push(["합계", wonShort(sr), wonShort(sc), wonShort(gpf), pct(sr ? (gpf / sr) * 100 : 0)]);
-  document.getElementById("tbl-monthly").innerHTML = tableHTML(["월", "매출", "영업비용", "영업이익", "이익률"], rows);
 }
 
 // ── 사업부 상세 뷰 (월 드롭박스 + 열별 콤보박스 필터) ──
@@ -390,9 +310,9 @@ function renderDeptMonthlyTable(deals) {
   const rows = keys.map((k) => {
     cr += byMonth[k].rev; cc += byMonth[k].cost;
     const R = isCum ? cr : byMonth[k].rev, C = isCum ? cc : byMonth[k].cost;
-    return [mLabel(k), wonShort(R), wonShort(C), wonShort(R - C)];
+    return [mLabel(k), tenMan(R), tenMan(C), tenMan(R - C)];
   });
-  rows.push(["연간 합계", wonShort(cr), wonShort(cc), wonShort(cr - cc)]);
+  rows.push(["연간 합계", tenMan(cr), tenMan(cc), tenMan(cr - cc)]);
   const heads = isCum ? ["월", "누적 매출", "누적 지출", "누적 이익"] : ["월", "매출", "지출", "영업이익"];
   document.getElementById("dept-monthly-table").innerHTML = tableHTML(heads, rows);
 }
@@ -439,10 +359,10 @@ function renderCollectionTable(unitAgg) {
   const rows = units.map((u) => {
     const a = unitAgg[u], done = a.revenue - a.receivable;
     sd += done; srec += a.receivable;
-    return [dot(u), wonShort(done), wonShort(a.receivable), pct(a.revenue ? (a.receivable / a.revenue) * 100 : 0)];
+    return [dot(u), tenMan(done), tenMan(a.receivable), pct(a.revenue ? (a.receivable / a.revenue) * 100 : 0)];
   });
   const tot = sd + srec;
-  rows.push(["합계", wonShort(sd), wonShort(srec), pct(tot ? (srec / tot) * 100 : 0)]);
+  rows.push(["합계", tenMan(sd), tenMan(srec), pct(tot ? (srec / tot) * 100 : 0)]);
   document.getElementById("tbl-collection").innerHTML = tableHTML(["사업부", "수금완료", "미수", "미수율"], rows);
 }
 
@@ -549,44 +469,12 @@ function setActive(group, btn) {
   btn.classList.add("active");
 }
 
-// ── 엑셀 업로드 ───────────────────────────────────────────────
-function wireUpload() {
-  const form = document.getElementById("upload-form");
-  const fileInput = document.getElementById("file-input");
-  const msg = document.getElementById("upload-message");
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!fileInput.files.length) return;
-    const data = new FormData();
-    data.append("file", fileInput.files[0]);
-    msg.textContent = "업로드 중…";
-    msg.className = "entry-message";
-    try {
-      const res = await fetch("/api/upload", { method: "POST", body: data });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "업로드 실패");
-      let text = `${json.inserted.toLocaleString("ko-KR")}건 추가 완료`;
-      if (json.skipped) text += ` · 건너뜀 ${json.skipped}건`;
-      msg.textContent = text;
-      msg.className = "entry-message ok";
-      if (json.errors && json.errors.length) msg.textContent += ` (${json.errors[0]} 등)`;
-      form.reset();
-      await loadData();
-    } catch (err) {
-      msg.textContent = "오류: " + err.message;
-      msg.className = "entry-message err";
-    }
-  });
-}
-
 // ── 시작 ─────────────────────────────────────────────────────
 if (window.Chart) {
   Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
   Chart.defaults.color = COLOR.text2;
 }
 wireControls();
-wireUpload();
 loadData();
 
 // 서비스워커 등록(앱 설치 지원)
