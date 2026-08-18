@@ -33,14 +33,31 @@ const pct = (x) => (isFinite(x) ? x.toFixed(1) : "0.0") + "%";
 
 // ── 상태 ─────────────────────────────────────────────────────
 let ALL = [];
-const state = { month: "전체", page: "전체", deptMode: "월별", deptFilter: { col: null, val: null } };
+const state = { month: "전체", page: "전체", deptMode: "월별", colFilters: {} };
 const charts = {};
+let deptScopeDeals = []; // 현재 사업부·월 스코프의 거래(열 필터 적용 전)
+let lastDeptScope = null;
+
+// 거래내역 필터 열 정의
+const COLS = [
+  { key: "deal_date", label: "거래일" },
+  { key: "business_unit", label: "사업부" },
+  { key: "revenue", label: "매출" },
+  { key: "cost", label: "비용" },
+  { key: "status", label: "수금상태" },
+  { key: "region", label: "지역" },
+];
+const colValue = (d, key) =>
+  key === "revenue" || key === "cost" ? String(d[key]) : key === "region" ? d.region || "" : d[key];
+const displayValue = (key, v) =>
+  key === "revenue" || key === "cost" ? Number(v).toLocaleString("ko-KR") : key === "region" && v === "" ? "(빈값)" : v;
 
 // ── 데이터 로드 ───────────────────────────────────────────────
 async function loadData() {
   const res = await fetch("/api/deals");
   const json = await res.json();
   ALL = json.deals || [];
+  lastDeptScope = null; // 데이터 갱신 시 필터 옵션 재구성
   const badge = document.getElementById("source-badge");
   badge.textContent =
     (json.source === "supabase" ? "Supabase 연결됨" : "더미 데이터(미리보기)") +
@@ -62,16 +79,21 @@ function deptDealsForUnit(unit) {
     a.deal_date < b.deal_date ? -1 : 1
   );
 }
-// 거래일/수금상태/지역 클릭 필터 적용
-function applyColFilter(deals) {
-  const f = state.deptFilter;
-  if (!f.col) return deals;
-  return deals.filter((d) => {
-    if (f.col === "deal_date") return d.deal_date === f.val;
-    if (f.col === "status") return d.status === f.val;
-    if (f.col === "region") return (d.region || "") === f.val;
-    return true;
-  });
+// 열별 다중선택 필터 적용 (열끼리는 AND, 한 열 안의 값끼리는 OR)
+function applyColFilters(deals) {
+  return deals.filter((d) =>
+    COLS.every((c) => {
+      const s = state.colFilters[c.key];
+      return !s || s.size === 0 || s.has(colValue(d, c.key));
+    })
+  );
+}
+// 한 열의 고유값 목록(정렬)
+function distinctValues(deals, key) {
+  const arr = [...new Set(deals.map((d) => colValue(d, key)))];
+  if (key === "revenue" || key === "cost") arr.sort((a, b) => Number(a) - Number(b));
+  else arr.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  return arr;
 }
 
 // ── 집계 ─────────────────────────────────────────────────────
@@ -308,28 +330,49 @@ function renderMonthlyTable(months) {
   document.getElementById("tbl-monthly").innerHTML = tableHTML(["월", "매출", "영업비용", "영업이익", "이익률"], rows);
 }
 
-// ── 사업부 상세 뷰 (월 드롭박스: 전체/1~12) ──
+// ── 사업부 상세 뷰 (월 드롭박스 + 열별 콤보박스 필터) ──
 function renderDeptView(unit) {
   const isAllMonths = state.month === "전체";
   document.getElementById("dept-monthly-section").hidden = !isAllMonths; // 월별 표는 전체일 때만
 
-  const deals = deptDealsForUnit(unit);
-  if (isAllMonths) renderDeptMonthlyTable(deals);
+  deptScopeDeals = deptDealsForUnit(unit);
+  if (isAllMonths) renderDeptMonthlyTable(deptScopeDeals);
 
-  // 클릭 필터 적용 후 거래내역 렌더
-  const shown = applyColFilter(deals);
-  renderFilterChip();
-  renderDeptExcel(shown);
+  // 사업부/월이 바뀌면 필터 콤보박스를 새 옵션으로 재구성하고 선택 초기화
+  const scopeKey = `${unit}|${state.month}`;
+  if (scopeKey !== lastDeptScope) {
+    lastDeptScope = scopeKey;
+    state.colFilters = {};
+    buildColFilters(deptScopeDeals);
+  }
+  refreshDeptTable();
 }
 
-// 활성 클릭 필터 표시(칩)
-function renderFilterChip() {
-  const chip = document.getElementById("dept-filter-chip");
-  const f = state.deptFilter;
-  if (!f.col) { chip.hidden = true; return; }
-  const label = { deal_date: "거래일", status: "수금상태", region: "지역" }[f.col];
-  chip.hidden = false;
-  chip.textContent = `${label}: ${f.val || "(빈값)"}  ✕`;
+// 열별 콤보박스 DOM 생성 (검색 input + 체크박스 옵션)
+function buildColFilters(deals) {
+  const esc = (s) => String(s).replace(/"/g, "&quot;");
+  document.getElementById("col-filters").innerHTML = COLS.map((c) => {
+    const opts = distinctValues(deals, c.key)
+      .map((v) => {
+        const disp = displayValue(c.key, v);
+        return `<label class="combo-opt" data-text="${esc(disp)}"><input type="checkbox" value="${esc(v)}" /> <span>${disp}</span></label>`;
+      })
+      .join("");
+    return `<div class="combo" data-col="${c.key}">
+      <div class="combo-label">${c.label}<span class="combo-count" data-count></span></div>
+      <div class="combo-field">
+        <input type="text" class="combo-input" placeholder="전체" autocomplete="off" />
+        <div class="combo-panel">${opts || '<div class="combo-empty">값 없음</div>'}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// 열 필터만 적용해 거래내역 표 다시 그림(콤보박스 DOM은 유지)
+function refreshDeptTable() {
+  renderDeptExcel(applyColFilters(deptScopeDeals));
+  const any = Object.values(state.colFilters).some((s) => s && s.size);
+  document.getElementById("clear-filters").hidden = !any;
 }
 
 // 전체(연간) 월별 표: 월별 / 누적 토글
@@ -354,10 +397,9 @@ function renderDeptMonthlyTable(deals) {
   document.getElementById("dept-monthly-table").innerHTML = tableHTML(heads, rows);
 }
 
-// 엑셀 양식 거래 내역: 거래일/수금상태/지역 셀 클릭 → 필터, 합계는 하단 고정(tfoot)
+// 엑셀 양식 거래 내역 (합계는 하단 고정 tfoot). 필터는 위 콤보박스로.
 function renderDeptExcel(deals) {
   document.getElementById("dept-count").textContent = `${deals.length.toLocaleString("ko-KR")}건`;
-  const esc = (s) => String(s).replace(/"/g, "&quot;");
   let sRev = 0, sCost = 0;
   const body = deals
     .map((d) => {
@@ -365,14 +407,13 @@ function renderDeptExcel(deals) {
       const st = d.status === "미수"
         ? '<span class="st-unpaid">미수</span>'
         : '<span class="st-paid">완료</span>';
-      const region = d.region || "";
       return `<tr>
-        <td class="lead clickable" data-col="deal_date" data-val="${esc(d.deal_date)}">${d.deal_date}</td>
+        <td class="lead">${d.deal_date}</td>
         <td class="lead">${d.business_unit}</td>
         <td>${Number(d.revenue).toLocaleString("ko-KR")}</td>
         <td>${Number(d.cost).toLocaleString("ko-KR")}</td>
-        <td class="lead clickable" data-col="status" data-val="${esc(d.status)}">${st}</td>
-        <td class="lead clickable" data-col="region" data-val="${esc(region)}">${region}</td>
+        <td class="lead">${st}</td>
+        <td class="lead">${d.region || ""}</td>
       </tr>`;
     })
     .join("");
@@ -417,8 +458,7 @@ function draw(id, config) {
 // ── 컨트롤 배선 ────────────────────────────────────────────────
 function setMonth(v) {
   state.month = v === "전체" ? "전체" : Number(v);
-  state.deptFilter = { col: null, val: null }; // 월 바꾸면 클릭 필터 해제
-  render();
+  render(); // 스코프가 바뀌면 renderDeptView가 필터를 재구성
 }
 function syncMonthSelects() {
   const v = String(state.month);
@@ -434,7 +474,6 @@ function wireControls() {
   document.querySelectorAll("#page-menu button").forEach((btn) =>
     btn.addEventListener("click", () => {
       state.page = btn.dataset.page;
-      state.deptFilter = { col: null, val: null };
       setActive("#page-menu", btn);
       render();
     })
@@ -448,18 +487,62 @@ function wireControls() {
     })
   );
 
-  // 거래내역 셀 클릭 → 해당 값으로 필터 (이벤트 위임)
-  document.getElementById("dept-table").addEventListener("click", (e) => {
-    const cell = e.target.closest("[data-col]");
-    if (!cell) return;
-    state.deptFilter = { col: cell.dataset.col, val: cell.dataset.val };
-    render();
+  wireColFilters();
+}
+
+// 열별 콤보박스 배선(이벤트 위임 — 콤보박스 DOM은 스코프 변경 시에만 재생성됨)
+function wireColFilters() {
+  const wrap = document.getElementById("col-filters");
+  const setOf = (col) => state.colFilters[col] || (state.colFilters[col] = new Set());
+  const countEl = (combo) => combo.querySelector("[data-count]");
+  const showCount = (combo, n) => (countEl(combo).textContent = n ? `(${n})` : "");
+
+  wrap.addEventListener("focusin", (e) => {
+    if (!e.target.classList.contains("combo-input")) return;
+    closeCombos();
+    e.target.closest(".combo").classList.add("open");
   });
-  // 필터 칩 클릭 → 해제
-  document.getElementById("dept-filter-chip").addEventListener("click", () => {
-    state.deptFilter = { col: null, val: null };
-    render();
+  wrap.addEventListener("input", (e) => {
+    if (!e.target.classList.contains("combo-input")) return;
+    const q = e.target.value.trim().toLowerCase();
+    const combo = e.target.closest(".combo");
+    combo.classList.add("open");
+    combo.querySelectorAll(".combo-opt").forEach((opt) =>
+      opt.classList.toggle("hidden", q && !(opt.dataset.text || "").toLowerCase().includes(q))
+    );
   });
+  wrap.addEventListener("change", (e) => {
+    if (e.target.type !== "checkbox") return;
+    const combo = e.target.closest(".combo");
+    const set = setOf(combo.dataset.col);
+    if (e.target.checked) set.add(e.target.value);
+    else set.delete(e.target.value);
+    showCount(combo, set.size);
+    refreshDeptTable();
+  });
+  // 입력 후 Enter → 현재 보이는 옵션 모두 선택 (예: "완료" 입력 후 Enter)
+  wrap.addEventListener("keydown", (e) => {
+    if (!e.target.classList.contains("combo-input") || e.key !== "Enter") return;
+    e.preventDefault();
+    const combo = e.target.closest(".combo");
+    const set = setOf(combo.dataset.col);
+    combo.querySelectorAll(".combo-opt:not(.hidden) input[type=checkbox]").forEach((cb) => {
+      if (!cb.checked) { cb.checked = true; set.add(cb.value); }
+    });
+    showCount(combo, set.size);
+    refreshDeptTable();
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#col-filters")) closeCombos();
+  });
+  document.getElementById("clear-filters").addEventListener("click", () => {
+    state.colFilters = {};
+    buildColFilters(deptScopeDeals);
+    refreshDeptTable();
+  });
+}
+function closeCombos() {
+  document.querySelectorAll(".combo.open").forEach((c) => c.classList.remove("open"));
 }
 function setActive(group, btn) {
   document.querySelectorAll(`${group} button`).forEach((b) => b.classList.remove("active"));

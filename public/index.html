@@ -119,7 +119,6 @@
               <option value="12">12월</option>
             </select>
           </label>
-          <button class="filter-chip" id="dept-filter-chip" type="button" hidden></button>
         </div>
 
         <section class="card" id="dept-monthly-section">
@@ -139,7 +138,9 @@
             <h2 class="card-title" id="dept-title">거래 내역 (엑셀 양식)</h2>
             <span class="badge" id="dept-count"></span>
           </div>
-          <p class="chart-desc" id="dept-detail-desc">거래일 · 수금상태 · 지역을 클릭하면 그 값에 해당하는 거래만 볼 수 있어요. (합계는 스크롤해도 하단에 고정)</p>
+          <p class="chart-desc">각 열의 드롭박스에서 값을 <b>선택하거나 직접 입력</b>해 거를 수 있고, <b>여러 개 동시 선택</b>도 됩니다. 합계는 스크롤해도 하단에 고정됩니다.</p>
+          <div class="col-filters" id="col-filters"></div>
+          <button class="filter-chip" id="clear-filters" type="button" hidden>필터 전체 해제 ✕</button>
           <div class="table-scroll excel-scroll" id="dept-table"></div>
         </section>
       </div>
