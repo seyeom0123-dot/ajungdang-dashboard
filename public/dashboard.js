@@ -152,10 +152,8 @@ function render() {
   if (isAll) {
     const agg = aggregate(filtered());
     renderFinanceTable(agg.unitAgg, agg.totals);
-    renderStackedChart(agg.months);
-    renderStackedTable(agg.months);
-    renderCollectionChart(agg.unitAgg);
-    renderCollectionTable(agg.unitAgg);
+    renderIncomeTable(agg.unitAgg, agg.totals);
+    renderCashflowTable(agg.unitAgg, agg.totals);
   } else {
     renderDeptView(state.page);
   }
@@ -250,6 +248,35 @@ function renderFinanceTable(unitAgg, totals) {
     ["미수금", ...UNIT_ORDER.map((u) => tenMan(get(u).receivable)), tenMan(tRecv)],
   ];
   document.getElementById("tbl-finance").innerHTML = tableHTML(["항목", "이사", "청소", "부동산", "합계"], rows, "fin-table");
+}
+
+// 손익계산서(선택 월 기준, 천만원)
+function renderIncomeTable(unitAgg, totals) {
+  const get = (u) => unitAgg[u] || { revenue: 0, cost: 0 };
+  const op = (a) => a.revenue - a.cost;
+  const tRev = totals.revenue, tCost = totals.cost, tOp = tRev - tCost;
+  const rows = [
+    ["매출액", ...UNIT_ORDER.map((u) => tenMan(get(u).revenue)), tenMan(tRev)],
+    ["영업비용", ...UNIT_ORDER.map((u) => tenMan(get(u).cost)), tenMan(tCost)],
+    ["영업이익", ...UNIT_ORDER.map((u) => tenMan(op(get(u)))), tenMan(tOp)],
+    ["영업이익률", ...UNIT_ORDER.map((u) => { const a = get(u); return pct(a.revenue ? (op(a) / a.revenue) * 100 : 0); }), pct(tRev ? (tOp / tRev) * 100 : 0)],
+    ["당기순이익", ...UNIT_ORDER.map((u) => tenMan(op(get(u)))), tenMan(tOp)],
+  ];
+  document.getElementById("tbl-income").innerHTML = tableHTML(["항목", "이사", "청소", "부동산", "합계"], rows, "fin-table");
+}
+
+// 현금흐름표(수금 기준 추정, 천만원)
+function renderCashflowTable(unitAgg, totals) {
+  const get = (u) => unitAgg[u] || { revenue: 0, cost: 0, receivable: 0 };
+  const inflow = (a) => a.revenue - a.receivable; // 수금완료 = 현금유입
+  const tIn = totals.revenue - totals.receivable, tOut = totals.cost, tRecv = totals.receivable;
+  const rows = [
+    ["영업 현금유입(수금)", ...UNIT_ORDER.map((u) => tenMan(inflow(get(u)))), tenMan(tIn)],
+    ["영업 현금유출(비용)", ...UNIT_ORDER.map((u) => tenMan(get(u).cost)), tenMan(tOut)],
+    ["영업활동 순현금흐름", ...UNIT_ORDER.map((u) => { const a = get(u); return tenMan(inflow(a) - a.cost); }), tenMan(tIn - tOut)],
+    ["미수금(미유입)", ...UNIT_ORDER.map((u) => tenMan(get(u).receivable)), tenMan(tRecv)],
+  ];
+  document.getElementById("tbl-cashflow").innerHTML = tableHTML(["항목", "이사", "청소", "부동산", "합계"], rows, "fin-table");
 }
 
 // 월별 사업부별 매출 (천만원 단위)
