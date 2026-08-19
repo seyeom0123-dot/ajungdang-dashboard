@@ -114,6 +114,7 @@ body {
   padding: 24px 24px 64px;
 }
 #dept-view { display: flex; flex-direction: column; gap: 20px; }
+#dept-view[hidden] { display: none; } /* hidden 속성이 display:flex를 이기도록 */
 .dept-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
 .dept-head .card-title { margin-bottom: 0; }
 /* 엑셀 양식 표: 스크롤 + 헤더 고정 */
@@ -400,12 +401,10 @@ body {
 }
 .dept-head-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
-/* 재무상태표: 하단 총계행 강조 해제 + 합계열 강조 */
+/* 재무제표: 하단 총계행 강조 해제, 합계열은 굵게만(음영 제거), 머리글(항목) 행만 음영 */
 .fin-table tbody tr:last-child td { border-top: 0; font-weight: 400; background: transparent; }
-.fin-table td:last-child, .fin-table th:last-child {
-  font-weight: 700;
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-}
+.fin-table td:last-child, .fin-table th:last-child { font-weight: 700; }
+.fin-table thead th { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
 /* 엑셀 업로드 */
 .upload-card { margin-bottom: 20px; }
